@@ -11,11 +11,30 @@ export async function fetchAllVideos(): Promise<Video[]> {
   return response.json();
 }
 
-export async function fetchVideosByCategory(category: string): Promise<Video[]> {
-  const response = await fetch(`${API_BASE_URL}/videos/${encodeURIComponent(category)}`);
+export interface CategoryVideosResponse {
+  videos: Video[];
+  page: number;
+  limit: number;
+  total: number;
+  total_pages: number;
+}
+
+export async function fetchCategoryVideos(
+  category: string, 
+  page: number = 1, 
+  limit: number = 12
+): Promise<CategoryVideosResponse> {
+  // Convert category to slug format for the API
+  const categorySlug = category.toLowerCase().replace(/\W+/g, '-');
+  
+  const response = await fetch(
+    `${API_BASE_URL}/videos/${categorySlug}?page=${page}&limit=${limit}`
+  );
+  
   if (!response.ok) {
     throw new Error(`Failed to fetch videos for category: ${category}`);
   }
+  
   return response.json();
 }
 
@@ -23,6 +42,22 @@ export async function fetchCategories(): Promise<{ name: string; count: number }
   const response = await fetch(`${API_BASE_URL}/categories`);
   if (!response.ok) {
     throw new Error('Failed to fetch categories');
+  }
+  return response.json();
+}
+
+export async function fetchVideoById(videoId: number): Promise<Video> {
+  const response = await fetch(`${API_BASE_URL}/video/${videoId}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch video with ID: ${videoId}`);
+  }
+  return response.json();
+}
+
+export async function searchVideos(query: string): Promise<Video[]> {
+  const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
+  if (!response.ok) {
+    throw new Error('Failed to search videos');
   }
   return response.json();
 }

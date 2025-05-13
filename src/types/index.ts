@@ -7,12 +7,15 @@ export interface Video {
   url: string;
   categories?: string[];
   sequence?: number;
+  duration_min?: number;
 }
 
 export interface Category {
   name: string;
+  slug?: string;
   videos: Video[];
   watchedCount: number;
+  count?: number;
 }
 
 export interface ProgressContextType {
@@ -21,4 +24,12 @@ export interface ProgressContextType {
   resetProgress: () => void;
   exportProgress: () => string;
   importProgress: (json: string) => void;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  page: number;
+  limit: number;
+  total: number;
+  total_pages: number;
 }

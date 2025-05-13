@@ -5,24 +5,40 @@ import Header from '@/components/Header';
 import CategorySidebar from '@/components/CategorySidebar';
 import VideoGrid from '@/components/VideoGrid';
 import { ProgressProvider } from '@/contexts/ProgressContext';
-import { fetchAllVideos } from '@/services/api';
+import { fetchAllVideos, fetchCategoryVideos } from '@/services/api';
 import { Video } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState<number>(1);
   
-  const { data: videos, isLoading, error } = useQuery({
+  // Fetch all videos for categories
+  const { data: allVideos, isLoading: isLoadingAllVideos } = useQuery({
     queryKey: ['videos'],
     queryFn: fetchAllVideos
   });
   
+  // Fetch paginated videos for the selected category
+  const { 
+    data: categoryData, 
+    isLoading: isLoadingCategory,
+    error 
+  } = useQuery({
+    queryKey: ['videos', selectedCategory, currentPage],
+    queryFn: () => fetchCategoryVideos(selectedCategory, currentPage),
+    enabled: !!selectedCategory,
+  });
+  
+  const categoryVideos = categoryData?.videos || [];
+  const totalPages = categoryData?.total_pages || 1;
+  
   // Build category map from fetched videos
   const categoryMap = React.useMemo(() => {
-    if (!videos) return {};
+    if (!allVideos) return {};
     
     const map: Record<string, number[]> = {};
-    videos.forEach(video => {
+    allVideos.forEach(video => {
       if (video.categories) {
         video.categories.forEach(category => {
           if (!map[category]) {
@@ -34,26 +50,31 @@ const Index = () => {
     });
     
     return map;
-  }, [videos]);
+  }, [allVideos]);
   
   // Set initial category when data is loaded
   React.useEffect(() => {
-    if (videos && videos.length > 0 && !selectedCategory) {
+    if (allVideos && allVideos.length > 0 && !selectedCategory) {
       // Get first category from the first video
-      const firstVideo = videos[0];
+      const firstVideo = allVideos[0];
       if (firstVideo.categories && firstVideo.categories.length > 0) {
         setSelectedCategory(firstVideo.categories[0]);
       }
     }
-  }, [videos, selectedCategory]);
+  }, [allVideos, selectedCategory]);
+
+  // Reset to page 1 when changing categories
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory]);
   
-  // Filter videos for the selected category
-  const categoryVideos = React.useMemo(() => {
-    if (!videos || !selectedCategory) return [];
-    return videos.filter(video => 
-      video.categories && video.categories.includes(selectedCategory)
-    ).sort((a, b) => (a.sequence || 0) - (b.sequence || 0)); // Sort by sequence
-  }, [selectedCategory, videos]);
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when changing pages
+    window.scrollTo(0, 0);
+  };
+
+  const isLoading = isLoadingAllVideos || (isLoadingCategory && selectedCategory);
 
   if (isLoading) {
     return (
@@ -89,17 +110,20 @@ const Index = () => {
   return (
     <ProgressProvider>
       <div className="min-h-screen flex flex-col">
-        <Header videos={videos || []} />
+        <Header videos={allVideos || []} />
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           <CategorySidebar
             categoryMap={categoryMap}
-            videos={videos || []}
+            videos={allVideos || []}
             selectedCategory={selectedCategory}
             onSelectCategory={setSelectedCategory}
           />
           <VideoGrid 
             videos={categoryVideos}
             categoryName={selectedCategory}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
           />
         </div>
       </div>

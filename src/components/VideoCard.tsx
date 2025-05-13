@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useProgress } from '@/contexts/ProgressContext';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { X } from 'lucide-react';
 
 interface VideoCardProps {
   video: Video;
@@ -15,6 +16,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   const { watchedVideos, toggleWatched } = useProgress();
   const isWatched = watchedVideos.has(video.video_id);
   const [videoOpen, setVideoOpen] = useState(false);
+  const [fullScreenMode, setFullScreenMode] = useState(false);
 
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -29,6 +31,20 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
       return;
     }
     setVideoOpen(true);
+  };
+
+  const handleThumbnailClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFullScreenMode(true);
+
+    // Add ESC key listener to exit fullscreen
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setFullScreenMode(false);
+        document.removeEventListener('keydown', keyHandler);
+      }
+    };
+    document.addEventListener('keydown', keyHandler);
   };
 
   const getEmbedUrl = (url: string) => {
@@ -53,11 +69,12 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
           <img 
             src={video.thumbnail} 
             alt={video.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover cursor-pointer"
             onError={(e) => {
               // Use a placeholder if the image fails to load
               (e.target as HTMLImageElement).src = '/placeholder.svg';
             }}
+            onClick={handleThumbnailClick}
           />
           {isWatched && (
             <div className="absolute bottom-2 right-2 bg-success text-white text-xs px-2 py-1 rounded">
@@ -100,6 +117,31 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
         </CardFooter>
       </Card>
 
+      {/* Fullscreen thumbnail mode */}
+      {fullScreenMode && (
+        <div 
+          className="fixed inset-0 z-50 bg-black flex items-center justify-center"
+          onClick={() => setFullScreenMode(false)}
+        >
+          <button 
+            className="absolute top-4 right-4 text-white bg-black bg-opacity-40 p-2 rounded-full"
+            onClick={() => setFullScreenMode(false)}
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img 
+            src={video.thumbnail} 
+            alt={video.title}
+            className="max-h-screen max-w-full object-contain"
+            onError={(e) => {
+              // Use a placeholder if the image fails to load
+              (e.target as HTMLImageElement).src = '/placeholder.svg';
+            }}
+          />
+        </div>
+      )}
+
+      {/* Video dialog */}
       <Dialog open={videoOpen} onOpenChange={setVideoOpen}>
         <DialogContent className="max-w-4xl w-[90vw]">
           <DialogHeader>
