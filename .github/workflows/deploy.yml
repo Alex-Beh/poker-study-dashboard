@@ -1,33 +1,30 @@
-name: Deploy to GitHub Pages
-
+name: Test, Build and Deploy
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 jobs:
-  deploy:
+  test-build-and-deploy:
+    concurrency: ci-${{ github.ref }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - name: Install and build
+      - name: Install dependencies and build
         run: |
-          npm install
+          npm ci
           npm run build
 
+      - name: Run tests
+        run: npm run test
+
       - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist  # or your build folder
+          folder: dist
+          branch: gh-pages
