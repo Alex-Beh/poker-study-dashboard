@@ -6,6 +6,7 @@ export interface Video {
   thumbnail: string;
   url: string;
   categories?: string[];
+  sequence?: number;
 }
 
 export interface Category {

@@ -41,6 +41,14 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
     });
   }, [categoryMap, videos, watchedVideos]);
 
+  if (categories.length === 0) {
+    return (
+      <div className="w-full md:w-64 md:min-w-64 bg-card border-r flex items-center justify-center p-4">
+        <p className="text-muted-foreground">No categories available</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full md:w-64 md:min-w-64 bg-card border-r md:h-[calc(100vh-5rem)] overflow-hidden">
       <ScrollArea className="h-full">

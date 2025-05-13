@@ -21,15 +21,15 @@ const VideoGrid: React.FC<VideoGridProps> = ({ videos, categoryName }) => {
   return (
     <div className="flex-1 overflow-hidden">
       <div className="p-4 flex flex-col h-full">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <h2 className="text-xl font-bold">{categoryName}</h2>
-          <div className="w-full max-w-xs">
+          <div className="w-full sm:w-auto sm:max-w-xs">
             <Input
               type="search"
               placeholder="Search videos..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
+              className="w-full"
             />
           </div>
         </div>
