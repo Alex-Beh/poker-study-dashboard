@@ -6,7 +6,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useProgress } from '@/contexts/ProgressContext';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { X } from 'lucide-react';
+import { X, Fullscreen, Minimize2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface VideoCardProps {
   video: Video;
@@ -17,6 +18,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   const isWatched = watchedVideos.has(video.video_id);
   const [videoOpen, setVideoOpen] = useState(false);
   const [fullScreenMode, setFullScreenMode] = useState(false);
+  const [videoFullscreen, setVideoFullscreen] = useState(false);
 
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -35,16 +37,13 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
 
   const handleThumbnailClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setFullScreenMode(true);
+    // Now directly open the video in fullscreen
+    setVideoOpen(true);
+    setVideoFullscreen(true);
+  };
 
-    // Add ESC key listener to exit fullscreen
-    const keyHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setFullScreenMode(false);
-        document.removeEventListener('keydown', keyHandler);
-      }
-    };
-    document.addEventListener('keydown', keyHandler);
+  const toggleVideoFullscreen = () => {
+    setVideoFullscreen(!videoFullscreen);
   };
 
   const getEmbedUrl = (url: string) => {
@@ -142,12 +141,23 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
       )}
 
       {/* Video dialog */}
-      <Dialog open={videoOpen} onOpenChange={setVideoOpen}>
-        <DialogContent className="max-w-4xl w-[90vw]">
-          <DialogHeader>
-            <DialogTitle className="text-lg mb-4">{video.title}</DialogTitle>
-          </DialogHeader>
-          <div className="aspect-video w-full overflow-hidden rounded">
+      <Dialog open={videoOpen} onOpenChange={(open) => {
+        setVideoOpen(open);
+        if (!open) setVideoFullscreen(false);
+      }}>
+        <DialogContent className={cn(
+          "transition-all duration-300",
+          videoFullscreen ? "max-w-[100vw] w-[100vw] h-[100vh] p-0 border-0 rounded-none" : "max-w-4xl w-[90vw]"
+        )}>
+          {!videoFullscreen && (
+            <DialogHeader>
+              <DialogTitle className="text-lg mb-4">{video.title}</DialogTitle>
+            </DialogHeader>
+          )}
+          <div className={cn(
+            "relative",
+            videoFullscreen ? "w-full h-full" : "aspect-video w-full overflow-hidden rounded"
+          )}>
             <iframe
               src={getEmbedUrl(video.url)}
               title={video.title}
@@ -156,6 +166,14 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
               allowFullScreen
               frameBorder="0"
             />
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm"
+              onClick={toggleVideoFullscreen}
+            >
+              {videoFullscreen ? <Minimize2 /> : <Fullscreen />}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
