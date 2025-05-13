@@ -1,0 +1,127 @@
+
+import React, { useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { useProgress } from '@/contexts/ProgressContext';
+import { Video } from '@/types';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/use-toast';
+
+interface HeaderProps {
+  videos: Video[];
+}
+
+const Header: React.FC<HeaderProps> = ({ videos }) => {
+  const { watchedVideos, resetProgress, exportProgress, importProgress } = useProgress();
+  const { toast } = useToast();
+  const [importText, setImportText] = React.useState('');
+  
+  const totalVideos = useMemo(() => new Set(videos.map(v => v.video_id)).size, [videos]);
+  const watchedCount = watchedVideos.size;
+  
+  const overallProgress = useMemo(() => {
+    return totalVideos > 0 ? (watchedCount / totalVideos) * 100 : 0;
+  }, [totalVideos, watchedCount]);
+
+  const handleReset = () => {
+    if (confirm('Are you sure you want to reset all progress?')) {
+      resetProgress();
+      toast({
+        title: "Progress Reset",
+        description: "All watched status has been reset.",
+      });
+    }
+  };
+
+  const handleExport = () => {
+    const data = exportProgress();
+    navigator.clipboard.writeText(data);
+    toast({
+      title: "Progress Exported",
+      description: "Progress data copied to clipboard.",
+    });
+  };
+
+  const handleImport = () => {
+    try {
+      importProgress(importText);
+      toast({
+        title: "Progress Imported",
+        description: "Your progress has been successfully updated.",
+      });
+      setImportText('');
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Import Failed",
+        description: "Invalid format. Please check your import data.",
+      });
+    }
+  };
+
+  return (
+    <div className="sticky top-0 z-10 bg-background border-b p-4 mb-4">
+      <div className="container mx-auto">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold">Poker Training Tracker</h1>
+            <div className="flex items-center gap-2 mt-2">
+              <Progress value={overallProgress} className="h-2 flex-1" />
+              <span className="text-sm font-medium whitespace-nowrap">
+                {watchedCount} / {totalVideos} ({Math.round(overallProgress)}%)
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">Import/Export</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Import/Export Progress</DialogTitle>
+                  <DialogDescription>
+                    Backup your progress or restore from a previous export.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-4 py-4">
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Export Progress</h4>
+                    <Button onClick={handleExport} size="sm">Copy to Clipboard</Button>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Import Progress</h4>
+                    <div className="flex gap-2">
+                      <Input 
+                        value={importText} 
+                        onChange={(e) => setImportText(e.target.value)}
+                        placeholder="Paste exported data here..."
+                        className="flex-1"
+                      />
+                      <Button onClick={handleImport} size="sm" disabled={!importText}>Import</Button>
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={handleReset}
+            >
+              Reset Progress
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Header;
