@@ -10,14 +10,14 @@ import { Trash, Plus } from 'lucide-react';
 const CategoryManager: React.FC = () => {
   const queryClient = useQueryClient();
   const [newCategoryName, setNewCategoryName] = useState('');
-  
+
   const { data: categoryResponse, isLoading, error } = useQuery({
     queryKey: ['categories'],
     queryFn: categoriesApi.getAll
   });
-  
-  const categories = categoryResponse?.data || [];
-  
+
+  const categories = categoryResponse ?? [];
+
   // Delete category mutation
   const deleteMutation = useMutation({
     mutationFn: categoriesApi.delete,
@@ -36,7 +36,7 @@ const CategoryManager: React.FC = () => {
       });
     }
   });
-  
+
   // Create category mutation
   const createMutation = useMutation({
     mutationFn: (name: string) => {
@@ -59,24 +59,24 @@ const CategoryManager: React.FC = () => {
       });
     }
   });
-  
+
   const handleDeleteCategory = (slug: string, name: string) => {
     if (confirm(`Are you sure you want to delete the category "${name}"? This cannot be undone.`)) {
       deleteMutation.mutate(slug);
     }
   };
-  
+
   const handleCreateCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (newCategoryName.trim()) {
       createMutation.mutate(newCategoryName.trim());
     }
   };
-  
+
   if (isLoading) {
     return <div className="p-4 animate-pulse bg-muted rounded">Loading categories...</div>;
   }
-  
+
   if (error) {
     return (
       <div className="p-4 text-destructive bg-destructive/10 rounded">
@@ -84,15 +84,15 @@ const CategoryManager: React.FC = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold">Manage Categories</h2>
-      
+
       <form onSubmit={handleCreateCategory} className="flex gap-2 mb-4">
-        <Input 
-          value={newCategoryName} 
-          onChange={(e) => setNewCategoryName(e.target.value)} 
+        <Input
+          value={newCategoryName}
+          onChange={(e) => setNewCategoryName(e.target.value)}
           placeholder="New category name"
           className="flex-1"
         />
@@ -101,7 +101,7 @@ const CategoryManager: React.FC = () => {
           Add Category
         </Button>
       </form>
-      
+
       <div className="rounded-md border">
         <div className="p-4 bg-muted/50">
           <div className="grid grid-cols-3 font-medium">
@@ -110,7 +110,7 @@ const CategoryManager: React.FC = () => {
             <div className="text-right">Actions</div>
           </div>
         </div>
-        
+
         <div className="divide-y">
           {categories.length > 0 ? (
             categories.map((category) => (

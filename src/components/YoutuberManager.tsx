@@ -24,10 +24,10 @@ const YoutuberManager: React.FC = () => {
     queryFn: fetchYoutubers
   });
 
-  const youtubers = youtuberResponse?.data || [];
+  const youtubers = youtuberResponse ?? [];
 
   const createMutation = useMutation({
-    mutationFn: ({ name, slug, channelUrl }: { name: string, slug: string, channelUrl?: string }) => 
+    mutationFn: ({ name, slug, channelUrl }: { name: string, slug: string, channelUrl?: string }) =>
       createYoutuber(name, slug, channelUrl),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['youtubers'] });
@@ -75,11 +75,11 @@ const YoutuberManager: React.FC = () => {
       });
       return;
     }
-    
-    createMutation.mutate({ 
-      name: newYoutuberName, 
+
+    createMutation.mutate({
+      name: newYoutuberName,
       slug: newYoutuberSlug,
-      channelUrl: newYoutuberChannel || undefined 
+      channelUrl: newYoutuberChannel || undefined
     });
   };
 
@@ -121,9 +121,9 @@ const YoutuberManager: React.FC = () => {
             <form onSubmit={handleCreateYoutuber} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
-                <Input 
+                <Input
                   id="name"
-                  value={newYoutuberName} 
+                  value={newYoutuberName}
                   onChange={e => setNewYoutuberName(e.target.value)}
                   placeholder="Youtuber Name"
                   required
@@ -131,9 +131,9 @@ const YoutuberManager: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="slug">Slug</Label>
-                <Input 
+                <Input
                   id="slug"
-                  value={newYoutuberSlug} 
+                  value={newYoutuberSlug}
                   onChange={e => setNewYoutuberSlug(e.target.value)}
                   placeholder="youtuber-slug"
                   required
@@ -144,16 +144,16 @@ const YoutuberManager: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="channel">YouTube Channel URL (optional)</Label>
-                <Input 
+                <Input
                   id="channel"
-                  value={newYoutuberChannel} 
+                  value={newYoutuberChannel}
                   onChange={e => setNewYoutuberChannel(e.target.value)}
                   placeholder="https://youtube.com/channel/..."
                 />
               </div>
               <DialogFooter>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={createMutation.isPending}
                 >
                   {createMutation.isPending ? 'Creating...' : 'Create Youtuber'}
@@ -163,7 +163,7 @@ const YoutuberManager: React.FC = () => {
           </DialogContent>
         </Dialog>
       </div>
-      
+
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3].map(i => (
@@ -177,9 +177,9 @@ const YoutuberManager: React.FC = () => {
               <CardContent className="flex-1 pt-6">
                 <h3 className="font-medium">{youtuber.name}</h3>
                 {youtuber.channel_url && (
-                  <a 
-                    href={youtuber.channel_url} 
-                    target="_blank" 
+                  <a
+                    href={youtuber.channel_url}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-blue-500 hover:underline"
                   >
@@ -189,9 +189,9 @@ const YoutuberManager: React.FC = () => {
               </CardContent>
               <CardFooter className="border-t pt-4 flex justify-between">
                 <span className="text-xs text-muted-foreground">Slug: {youtuber.slug}</span>
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
+                <Button
+                  variant="destructive"
+                  size="sm"
                   className="ml-auto"
                   onClick={() => handleDeleteYoutuber(youtuber)}
                   disabled={deleteMutation.isPending}
