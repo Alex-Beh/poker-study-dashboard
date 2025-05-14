@@ -135,3 +135,13 @@ export async function deleteTag(slug: string): Promise<void> {
     throw new Error(`Failed to delete tag: ${slug}`);
   }
 }
+
+// Add this to your api.ts file
+export async function fetchCreatorVideos(youtuberSlug: string): Promise<Video[]> {
+  const response = await fetch(`${API_BASE_URL}/videos?creator=${encodeURIComponent(youtuberSlug)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch videos for youtuber: ${youtuberSlug}`);
+  }
+  const data = await response.json();
+  return data;
+}
