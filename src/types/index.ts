@@ -3,8 +3,8 @@ export interface Video {
   video_id: number;
   title: string;
   duration: number;
-  thumbnail_url: string; // Updated from thumbnail
-  youtube_url: string; // Updated from url
+  thumbnail_url: string;
+  youtube_url: string;
   categories?: string[];
   sequence?: number;
   duration_min?: number;
@@ -70,4 +70,10 @@ export interface PaginatedResponse<T> {
   limit: number;
   total: number;
   total_pages: number;
+}
+
+export interface Tag {
+  id: number;
+  name: string;
+  slug: string;
 }

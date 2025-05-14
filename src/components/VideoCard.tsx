@@ -5,7 +5,7 @@ import { useProgress } from '@/contexts/ProgressContext';
 import { useUserCategories } from '@/contexts/UserCategoriesContext';
 import { useCreator } from '@/contexts/CreatorContext';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { markVideoAsWatched } from '@/services/api';
+import { videosApi } from '@/services/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -37,34 +37,44 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const queryClient = useQueryClient();
   
-  const isWatched = video.watched || watchedVideos.has(video.video_id);
+  // Convert string IDs to numbers for comparison if needed
+  const videoId = typeof video.video_id === 'string' ? parseInt(video.video_id) : video.video_id;
+  
+  // Check if the video is watched
+  const isWatched = video.watched || watchedVideos.has(videoId);
+  
+  // Format the duration
   const formattedDuration = video.duration_min 
     ? `${Math.floor(video.duration_min)}:${Math.round((video.duration_min % 1) * 60).toString().padStart(2, '0')}`
     : formatDuration(video.duration);
   
   function formatDuration(seconds: number): string {
+    if (!seconds) return "0:00"; // Fallback for missing duration
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.round(seconds % 60);
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   }
   
+  // Get user categories for the current creator
   const userCategoriesForCreator = selectedCreator
-    ? userCategories.filter(cat => cat.creatorId === selectedCreator.id)
+    ? userCategories.filter(cat => cat.creatorId === selectedCreator.id.toString())
     : [];
   
-  const handleCategoryToggle = (categoryId: string, videoId: number, isChecked: boolean) => {
+  // Handle category toggle
+  const handleCategoryToggle = (categoryId: string, currentVideoId: number, isChecked: boolean) => {
     if (isChecked) {
-      assignVideoToCategory(categoryId, videoId);
+      assignVideoToCategory(categoryId, currentVideoId);
     } else {
-      unassignVideoFromCategory(categoryId, videoId);
+      unassignVideoFromCategory(categoryId, currentVideoId);
     }
   };
 
+  // Mutation for marking a video as watched
   const watchMutation = useMutation({
-    mutationFn: (videoId: number) => markVideoAsWatched(videoId),
+    mutationFn: (id: number) => videosApi.markAsWatched(id),
     onSuccess: () => {
       // Update local state first for immediate UI feedback
-      toggleWatched(video.video_id);
+      toggleWatched(videoId);
       
       // Then refresh data from server
       queryClient.invalidateQueries({ queryKey: ['videos'] });
@@ -83,21 +93,24 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
     }
   });
   
+  // Handle watched toggle
   const handleWatchedToggle = () => {
     if (!isWatched) {
-      watchMutation.mutate(video.video_id);
+      watchMutation.mutate(videoId);
     } else {
       // Just use the local toggle for now
-      toggleWatched(video.video_id);
+      toggleWatched(videoId);
     }
   };
 
+  // Open video dialog
   const handleOpenVideo = () => {
     setIsDialogOpen(true);
   };
 
+  // Toggle fullscreen
   const toggleFullScreen = () => {
-    const iframe = document.getElementById(`video-iframe-${video.video_id}`) as HTMLIFrameElement;
+    const iframe = document.getElementById(`video-iframe-${videoId}`) as HTMLIFrameElement;
     setIsFullScreen(!isFullScreen);
     
     if (!isFullScreen && iframe) {
@@ -107,12 +120,18 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
     }
   };
   
+  // Make sure we have a valid thumbnail URL
+  const thumbnailUrl = video.thumbnail_url || '';
+  
+  // Make sure we have a valid video URL
+  const videoUrl = video.youtube_url || '';
+  
   return (
     <Card className={`overflow-hidden transition-all duration-200 ${isWatched ? 'opacity-60' : ''}`}>
       <div className="relative">
         <div 
           className="aspect-video bg-cover bg-center cursor-pointer" 
-          style={{ backgroundImage: `url(${video.thumbnail_url || video.thumbnail})` }}
+          style={{ backgroundImage: `url(${thumbnailUrl})` }}
           onClick={handleOpenVideo}
         >
           <div className="absolute bottom-2 right-2 bg-black bg-opacity-80 text-white text-xs px-1 rounded">
@@ -157,13 +176,13 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
                       key={category.id}
                       onClick={(e) => {
                         e.preventDefault();
-                        const isInCategory = isVideoInCategory(category.id, video.video_id);
-                        handleCategoryToggle(category.id, video.video_id, !isInCategory);
+                        const isInCategory = isVideoInCategory(category.id, videoId);
+                        handleCategoryToggle(category.id, videoId, !isInCategory);
                       }}
                       className="flex items-center justify-between cursor-pointer"
                     >
                       <span>{category.name}</span>
-                      {isVideoInCategory(category.id, video.video_id) && (
+                      {isVideoInCategory(category.id, videoId) && (
                         <Check className="h-4 w-4" />
                       )}
                     </DropdownMenuItem>
@@ -184,8 +203,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
           </DialogHeader>
           <div className="aspect-video w-full">
             <iframe 
-              id={`video-iframe-${video.video_id}`}
-              src={`${video.youtube_url || video.url}?autoplay=1`}
+              id={`video-iframe-${videoId}`}
+              src={`${videoUrl}?autoplay=1`}
               className="w-full h-full"
               allowFullScreen
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -208,7 +227,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
             <Button 
               onClick={() => {
                 if (!isWatched) {
-                  watchMutation.mutate(video.video_id);
+                  watchMutation.mutate(videoId);
                 }
                 setIsDialogOpen(false);
               }}

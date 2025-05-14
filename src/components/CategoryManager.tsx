@@ -1,30 +1,26 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchCategories, deleteCategory } from '@/services/api';
+import { categoriesApi } from '@/services/api';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/use-toast';
-import { Trash } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Trash, Plus } from 'lucide-react';
 
 const CategoryManager: React.FC = () => {
   const queryClient = useQueryClient();
+  const [newCategoryName, setNewCategoryName] = useState('');
   
   const { data: categoryResponse, isLoading, error } = useQuery({
     queryKey: ['categories'],
-    queryFn: fetchCategories
+    queryFn: categoriesApi.getAll
   });
   
   const categories = categoryResponse?.data || [];
   
+  // Delete category mutation
   const deleteMutation = useMutation({
-    mutationFn: deleteCategory,
+    mutationFn: categoriesApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       toast({
@@ -36,7 +32,30 @@ const CategoryManager: React.FC = () => {
       toast({
         variant: "destructive",
         title: "Deletion Failed",
-        description: `Failed to delete category: ${error.message}`
+        description: `Failed to delete category: ${(error as Error).message}`
+      });
+    }
+  });
+  
+  // Create category mutation
+  const createMutation = useMutation({
+    mutationFn: (name: string) => {
+      const slug = name.toLowerCase().replace(/\s+/g, '-');
+      return categoriesApi.create({ name, slug });
+    },
+    onSuccess: () => {
+      setNewCategoryName('');
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      toast({
+        title: "Category Created",
+        description: "Category successfully created"
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Creation Failed",
+        description: `Failed to create category: ${(error as Error).message}`
       });
     }
   });
@@ -44,6 +63,13 @@ const CategoryManager: React.FC = () => {
   const handleDeleteCategory = (slug: string, name: string) => {
     if (confirm(`Are you sure you want to delete the category "${name}"? This cannot be undone.`)) {
       deleteMutation.mutate(slug);
+    }
+  };
+  
+  const handleCreateCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newCategoryName.trim()) {
+      createMutation.mutate(newCategoryName.trim());
     }
   };
   
@@ -62,6 +88,19 @@ const CategoryManager: React.FC = () => {
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold">Manage Categories</h2>
+      
+      <form onSubmit={handleCreateCategory} className="flex gap-2 mb-4">
+        <Input 
+          value={newCategoryName} 
+          onChange={(e) => setNewCategoryName(e.target.value)} 
+          placeholder="New category name"
+          className="flex-1"
+        />
+        <Button type="submit" disabled={!newCategoryName.trim() || createMutation.isPending}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Category
+        </Button>
+      </form>
       
       <div className="rounded-md border">
         <div className="p-4 bg-muted/50">

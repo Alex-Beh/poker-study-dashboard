@@ -1,29 +1,43 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchCategories } from '@/services/api';
+import { categoriesApi, tagsApi } from '@/services/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import YoutuberManager from '@/components/YoutuberManager';
 import CategoryManager from '@/components/CategoryManager';
 import TagManager from '@/components/TagManager';
 import { Separator } from '@/components/ui/separator';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 const Settings = () => {
-  // We'll reuse the categories query
+  const navigate = useNavigate();
+  
+  // Fetch categories
   const { data: categoryResponse } = useQuery({
     queryKey: ['categories'],
-    queryFn: fetchCategories
+    queryFn: categoriesApi.getAll
   });
   
-  // In a real application, we'd fetch tags from the API
-  // For now, we'll use an empty array or mock data
-  const tags = [];
-  const isLoadingTags = false;
-  const tagsError = null;
+  // Fetch tags
+  const { data: tagsResponse, isLoading: isLoadingTags, error: tagsError } = useQuery({
+    queryKey: ['tags'],
+    queryFn: tagsApi.getAll
+  });
+  
+  // Get tags from the API response
+  const tags = tagsResponse?.data || [];
   
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Settings</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold">Settings</h1>
+        <Button variant="outline" onClick={() => navigate('/')}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Home
+        </Button>
+      </div>
       
       <Tabs defaultValue="youtubers">
         <TabsList className="mb-8">
@@ -41,7 +55,7 @@ const Settings = () => {
         </TabsContent>
         
         <TabsContent value="tags">
-          <TagManager tags={tags} isLoading={isLoadingTags} error={tagsError} />
+          <TagManager tags={tags} isLoading={isLoadingTags} error={tagsError as Error | null} />
         </TabsContent>
       </Tabs>
       
