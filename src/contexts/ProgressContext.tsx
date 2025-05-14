@@ -1,6 +1,8 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { ProgressContextType } from '../types';
+import { markVideoAsWatched } from '@/services/api';
+import { toast } from '@/components/ui/use-toast';
 
 // Create the context with default values
 const ProgressContext = createContext<ProgressContextType>({
@@ -45,7 +47,20 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
       if (newWatched.has(videoId)) {
         newWatched.delete(videoId);
       } else {
-        newWatched.add(videoId);
+        // When marking as watched, also call the API
+        try {
+          markVideoAsWatched(videoId).catch(error => {
+            console.error('Error marking video as watched:', error);
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Failed to update watched status on the server."
+            });
+          });
+          newWatched.add(videoId);
+        } catch (error) {
+          console.error('Error marking video as watched:', error);
+        }
       }
       return newWatched;
     });

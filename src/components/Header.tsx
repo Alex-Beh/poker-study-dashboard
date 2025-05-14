@@ -1,5 +1,6 @@
 
 import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useProgress } from '@/contexts/ProgressContext';
@@ -10,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/use-toast';
 import { useToast } from '@/components/ui/use-toast';
 import CreatorDropdown from './CreatorDropdown';
+import { Settings } from 'lucide-react';
 
 interface HeaderProps {
   videos: Video[];
@@ -24,7 +26,7 @@ const Header: React.FC<HeaderProps> = ({ videos }) => {
   // Filter videos by selected creator if applicable
   const filteredVideos = useMemo(() => {
     if (!selectedCreator) return videos;
-    return videos.filter(v => v.creator_id === selectedCreator.id);
+    return videos.filter(v => v.youtuber_id === selectedCreator.id || v.creator_id === selectedCreator.id);
   }, [videos, selectedCreator]);
   
   const totalVideos = useMemo(() => new Set(filteredVideos.map(v => v.video_id)).size, [filteredVideos]);
@@ -133,6 +135,17 @@ const Header: React.FC<HeaderProps> = ({ videos }) => {
               onClick={handleReset}
             >
               Reset Progress
+            </Button>
+            
+            <Button 
+              variant="secondary" 
+              size="sm"
+              asChild
+            >
+              <Link to="/settings">
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Link>
             </Button>
           </div>
         </div>

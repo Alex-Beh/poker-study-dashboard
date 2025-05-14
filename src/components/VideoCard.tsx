@@ -4,6 +4,8 @@ import { Video } from '@/types';
 import { useProgress } from '@/contexts/ProgressContext';
 import { useUserCategories } from '@/contexts/UserCategoriesContext';
 import { useCreator } from '@/contexts/CreatorContext';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { markVideoAsWatched } from '@/services/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -11,7 +13,8 @@ import {
   Dialog, 
   DialogContent, 
   DialogHeader, 
-  DialogTitle 
+  DialogTitle,
+  DialogFooter
 } from '@/components/ui/dialog';
 import {
   DropdownMenu,
@@ -19,7 +22,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Check } from 'lucide-react';
+import { Check, Maximize, Minimize } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
 
 interface VideoCardProps {
   video: Video;
@@ -30,9 +34,10 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   const { userCategories, assignVideoToCategory, unassignVideoFromCategory, isVideoInCategory } = useUserCategories();
   const { selectedCreator } = useCreator();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const queryClient = useQueryClient();
   
-  const isWatched = watchedVideos.has(video.video_id);
+  const isWatched = video.watched || watchedVideos.has(video.video_id);
   const formattedDuration = video.duration_min 
     ? `${Math.floor(video.duration_min)}:${Math.round((video.duration_min % 1) * 60).toString().padStart(2, '0')}`
     : formatDuration(video.duration);
@@ -54,14 +59,61 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
       unassignVideoFromCategory(categoryId, videoId);
     }
   };
+
+  const watchMutation = useMutation({
+    mutationFn: (videoId: number) => markVideoAsWatched(videoId),
+    onSuccess: () => {
+      // Update local state first for immediate UI feedback
+      toggleWatched(video.video_id);
+      
+      // Then refresh data from server
+      queryClient.invalidateQueries({ queryKey: ['videos'] });
+      
+      toast({
+        title: "Video Marked as Watched",
+        description: "Your progress has been updated."
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to Mark Video",
+        description: (error as Error).message
+      });
+    }
+  });
+  
+  const handleWatchedToggle = () => {
+    if (!isWatched) {
+      watchMutation.mutate(video.video_id);
+    } else {
+      // Just use the local toggle for now
+      toggleWatched(video.video_id);
+    }
+  };
+
+  const handleOpenVideo = () => {
+    setIsDialogOpen(true);
+  };
+
+  const toggleFullScreen = () => {
+    const iframe = document.getElementById(`video-iframe-${video.video_id}`) as HTMLIFrameElement;
+    setIsFullScreen(!isFullScreen);
+    
+    if (!isFullScreen && iframe) {
+      if (iframe.requestFullscreen) {
+        iframe.requestFullscreen();
+      }
+    }
+  };
   
   return (
     <Card className={`overflow-hidden transition-all duration-200 ${isWatched ? 'opacity-60' : ''}`}>
       <div className="relative">
         <div 
           className="aspect-video bg-cover bg-center cursor-pointer" 
-          style={{ backgroundImage: `url(${video.thumbnail})` }}
-          onClick={() => setIsDialogOpen(true)}
+          style={{ backgroundImage: `url(${video.thumbnail_url || video.thumbnail})` }}
+          onClick={handleOpenVideo}
         >
           <div className="absolute bottom-2 right-2 bg-black bg-opacity-80 text-white text-xs px-1 rounded">
             {formattedDuration}
@@ -71,7 +123,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
         <div className="absolute top-2 right-2">
           <Checkbox 
             checked={isWatched} 
-            onCheckedChange={() => toggleWatched(video.video_id)}
+            onCheckedChange={handleWatchedToggle}
             className="h-5 w-5 bg-white/90"
           />
         </div>
@@ -85,7 +137,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
             variant="outline" 
             size="sm" 
             className="text-xs"
-            onClick={() => setIsDialogOpen(true)}
+            onClick={handleOpenVideo}
           >
             Watch
           </Button>
@@ -132,12 +184,38 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
           </DialogHeader>
           <div className="aspect-video w-full">
             <iframe 
-              src={`${video.url}?autoplay=1`}
+              id={`video-iframe-${video.video_id}`}
+              src={`${video.youtube_url || video.url}?autoplay=1`}
               className="w-full h-full"
               allowFullScreen
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             />
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={toggleFullScreen}>
+              {isFullScreen ? (
+                <>
+                  <Minimize className="mr-2 h-4 w-4" />
+                  Exit Fullscreen
+                </>
+              ) : (
+                <>
+                  <Maximize className="mr-2 h-4 w-4" />
+                  Fullscreen
+                </>
+              )}
+            </Button>
+            <Button 
+              onClick={() => {
+                if (!isWatched) {
+                  watchMutation.mutate(video.video_id);
+                }
+                setIsDialogOpen(false);
+              }}
+            >
+              {isWatched ? "Close" : "Mark Watched & Close"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Card>

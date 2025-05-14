@@ -1,7 +1,7 @@
 
 import React, { useEffect } from 'react';
 import { useCreator } from '@/contexts/CreatorContext';
-import { fetchCreators } from '@/services/api';
+import { fetchYoutubers } from '@/services/api';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Select, 
@@ -14,25 +14,25 @@ import {
 const CreatorDropdown: React.FC = () => {
   const { selectedCreator, setSelectedCreator, creators, setCreators } = useCreator();
   
-  const { data: fetchedCreators, isLoading } = useQuery({
-    queryKey: ['creators'],
-    queryFn: fetchCreators,
+  const { data: youtuberResponse, isLoading } = useQuery({
+    queryKey: ['youtubers'],
+    queryFn: fetchYoutubers,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
   
   useEffect(() => {
-    if (fetchedCreators && fetchedCreators.length > 0) {
-      setCreators(fetchedCreators);
+    if (youtuberResponse && youtuberResponse.data.length > 0) {
+      setCreators(youtuberResponse.data);
       
       // If no creator is selected yet, select the first one
       if (!selectedCreator) {
-        setSelectedCreator(fetchedCreators[0]);
+        setSelectedCreator(youtuberResponse.data[0]);
       }
     }
-  }, [fetchedCreators, selectedCreator, setCreators, setSelectedCreator]);
+  }, [youtuberResponse, selectedCreator, setCreators, setSelectedCreator]);
   
   const handleCreatorChange = (creatorId: string) => {
-    const creator = creators.find(c => c.id === creatorId);
+    const creator = creators.find(c => c.id.toString() === creatorId);
     if (creator) {
       setSelectedCreator(creator);
     }
@@ -46,7 +46,7 @@ const CreatorDropdown: React.FC = () => {
   
   return (
     <Select 
-      value={selectedCreator.id} 
+      value={selectedCreator.id.toString()} 
       onValueChange={handleCreatorChange}
     >
       <SelectTrigger className="w-48">
@@ -54,7 +54,7 @@ const CreatorDropdown: React.FC = () => {
       </SelectTrigger>
       <SelectContent>
         {creators.map(creator => (
-          <SelectItem key={creator.id} value={creator.id}>
+          <SelectItem key={creator.id} value={creator.id.toString()}>
             {creator.name}
           </SelectItem>
         ))}
