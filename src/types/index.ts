@@ -1,21 +1,22 @@
 
 export interface Video {
-  video_id: number;
+  video_id: number | string;
   title: string;
   duration: number;
   thumbnail_url: string;
   youtube_url: string;
-  categories?: string[];
+  categories?: (string | CategoryItem)[];
   sequence?: number;
   duration_min?: number;
   creator_id?: string;
-  youtuber_id?: number;
+  youtuber_id?: number | string;
   watched?: boolean;
   upload_date?: string;
+  id?: number | string;
 }
 
 export interface Creator {
-  id: number;
+  id: number | string;
   name: string;
   slug: string;
   channel_url?: string;
@@ -32,9 +33,10 @@ export interface Category {
 }
 
 export interface CategoryItem {
+  id?: number | string;
   name: string;
   slug: string;
-  count: number;
+  count?: number;
 }
 
 export interface CategoryResponse {
@@ -73,7 +75,7 @@ export interface PaginatedResponse<T> {
 }
 
 export interface Tag {
-  id: number;
+  id: number | string;
   name: string;
   slug: string;
 }

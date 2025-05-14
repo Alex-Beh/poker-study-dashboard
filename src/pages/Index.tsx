@@ -7,7 +7,7 @@ import VideoGrid from '@/components/VideoGrid';
 import { ProgressProvider } from '@/contexts/ProgressContext';
 import { UserCategoriesProvider } from '@/contexts/UserCategoriesContext';
 import { CreatorProvider, useCreator } from '@/contexts/CreatorContext';
-import { fetchAllVideos, fetchCategoryVideos, fetchCreatorVideos } from '@/services/api';
+import { videosApi } from '@/services/api';
 import { Video } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserCategories } from '@/contexts/UserCategoriesContext';
@@ -18,10 +18,10 @@ const IndexContent = () => {
   const { selectedCreator } = useCreator();
   const { userCategories } = useUserCategories();
   
-  // Fetch all videos for categories
+  // Fetch all videos for the selected creator
   const { data: allVideos, isLoading: isLoadingAllVideos } = useQuery({
     queryKey: ['videos', selectedCreator?.id],
-    queryFn: fetchAllVideos
+    queryFn: () => videosApi.getAll()
   });
   
   // Fetch paginated videos for the selected category or creator
@@ -31,17 +31,17 @@ const IndexContent = () => {
     error 
   } = useQuery({
     queryKey: ['videos', selectedCategory, currentPage, selectedCreator?.id],
-    queryFn: () => {
+    queryFn: async () => {
       // Check if it's a user-defined category
       const userCategory = userCategories.find(c => 
-        c.name === selectedCategory && (!selectedCreator || c.creatorId === selectedCreator.id)
+        c.name === selectedCategory && (!selectedCreator || c.creatorId === selectedCreator.id.toString())
       );
       
       if (userCategory) {
         // For user categories, filter all videos to get those in the category
         if (allVideos) {
           const filteredVideos = allVideos.filter(video => 
-            userCategory.videoIds.includes(video.video_id)
+            userCategory.videoIds.includes(typeof video.video_id === 'string' ? parseInt(video.video_id) : video.video_id)
           );
           
           // Manual pagination for user categories
@@ -52,41 +52,42 @@ const IndexContent = () => {
           const end = start + limit;
           const paginatedVideos = filteredVideos.slice(start, end);
           
-          return Promise.resolve({
+          return {
             videos: paginatedVideos,
             page: currentPage,
             limit,
             total,
             total_pages: totalPages
-          });
+          };
         }
-        return Promise.resolve({
+        return {
           videos: [],
           page: 1,
           limit: 12,
           total: 0,
           total_pages: 1
-        });
+        };
       }
       
       // For system categories or when no category is selected
       if (selectedCreator && !selectedCategory) {
-        return fetchCreatorVideos(selectedCreator.id, currentPage);
+        return videosApi.getByCreator(selectedCreator.id, currentPage);
       } else if (selectedCategory) {
-        return fetchCategoryVideos(selectedCategory, currentPage);
+        return videosApi.getByCategory(selectedCategory, currentPage);
       } else {
-        return Promise.resolve({
+        return {
           videos: [],
           page: 1,
           limit: 12,
           total: 0,
           total_pages: 1
-        });
+        };
       }
     },
     enabled: !!selectedCategory || !!selectedCreator,
   });
   
+  // Extract videos and pagination info from the response
   const categoryVideos = categoryData?.videos || [];
   const totalPages = categoryData?.total_pages || 1;
   
@@ -98,17 +99,26 @@ const IndexContent = () => {
     allVideos.forEach(video => {
       if (video.categories) {
         video.categories.forEach(category => {
-          if (!map[category]) {
-            map[category] = [];
+          if (typeof category === 'string') {
+            if (!map[category]) {
+              map[category] = [];
+            }
+            const videoId = typeof video.video_id === 'string' ? parseInt(video.video_id) : video.video_id;
+            map[category].push(videoId);
+          } else if (category && typeof category === 'object' && 'name' in category) {
+            if (!map[category.name]) {
+              map[category.name] = [];
+            }
+            const videoId = typeof video.video_id === 'string' ? parseInt(video.video_id) : video.video_id;
+            map[category.name].push(videoId);
           }
-          map[category].push(video.video_id);
         });
       }
     });
     
     // Add user categories to the map
     userCategories.forEach(category => {
-      if (selectedCreator && category.creatorId === selectedCreator.id) {
+      if (selectedCreator && category.creatorId === selectedCreator.id.toString()) {
         map[category.name] = category.videoIds;
       }
     });
@@ -122,7 +132,12 @@ const IndexContent = () => {
       // Get first category from the first video
       const firstVideo = allVideos[0];
       if (firstVideo.categories && firstVideo.categories.length > 0) {
-        setSelectedCategory(firstVideo.categories[0]);
+        const firstCategory = firstVideo.categories[0];
+        if (typeof firstCategory === 'string') {
+          setSelectedCategory(firstCategory);
+        } else if (firstCategory && typeof firstCategory === 'object' && 'name' in firstCategory) {
+          setSelectedCategory(firstCategory.name);
+        }
       }
     }
   }, [allVideos, selectedCategory]);

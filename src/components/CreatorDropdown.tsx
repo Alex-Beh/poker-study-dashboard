@@ -1,8 +1,8 @@
 
 import React, { useEffect } from 'react';
 import { useCreator } from '@/contexts/CreatorContext';
-import { fetchYoutubers } from '@/services/api';
-import { useQuery } from '@tanstack/react-query';
+import { youtubersApi } from '@/services/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   Select, 
   SelectContent, 
@@ -13,28 +13,32 @@ import {
 
 const CreatorDropdown: React.FC = () => {
   const { selectedCreator, setSelectedCreator, creators, setCreators } = useCreator();
+  const queryClient = useQueryClient();
   
-  const { data: youtuberResponse, isLoading } = useQuery({
+  const { data: youtubers, isLoading } = useQuery({
     queryKey: ['youtubers'],
-    queryFn: fetchYoutubers,
+    queryFn: youtubersApi.getAll,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
   
   useEffect(() => {
-    if (youtuberResponse && youtuberResponse.data.length > 0) {
-      setCreators(youtuberResponse.data);
+    if (youtubers && youtubers.length > 0) {
+      setCreators(youtubers);
       
       // If no creator is selected yet, select the first one
       if (!selectedCreator) {
-        setSelectedCreator(youtuberResponse.data[0]);
+        setSelectedCreator(youtubers[0]);
       }
     }
-  }, [youtuberResponse, selectedCreator, setCreators, setSelectedCreator]);
+  }, [youtubers, selectedCreator, setCreators, setSelectedCreator]);
   
   const handleCreatorChange = (creatorId: string) => {
     const creator = creators.find(c => c.id.toString() === creatorId);
     if (creator) {
       setSelectedCreator(creator);
+      
+      // Invalidate videos query to force refetch with new creator
+      queryClient.invalidateQueries({ queryKey: ['videos'] });
     }
   };
   

@@ -71,7 +71,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
 
   // Mutation for marking a video as watched
   const watchMutation = useMutation({
-    mutationFn: (id: number) => videosApi.markAsWatched(id),
+    mutationFn: (id: number | string) => videosApi.markAsWatched(id),
     onSuccess: () => {
       // Update local state first for immediate UI feedback
       toggleWatched(videoId);
@@ -124,7 +124,15 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   const thumbnailUrl = video.thumbnail_url || '';
   
   // Make sure we have a valid video URL
-  const videoUrl = video.youtube_url || '';
+  let videoUrl = video.youtube_url || '';
+  
+  // Ensure the YouTube URL is properly formatted for embedding
+  if (videoUrl && !videoUrl.includes('embed')) {
+    const videoIdMatch = videoUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/);
+    if (videoIdMatch && videoIdMatch[1]) {
+      videoUrl = `https://www.youtube.com/embed/${videoIdMatch[1]}`;
+    }
+  }
   
   return (
     <Card className={`overflow-hidden transition-all duration-200 ${isWatched ? 'opacity-60' : ''}`}>
