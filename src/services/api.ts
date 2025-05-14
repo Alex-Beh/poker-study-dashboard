@@ -1,5 +1,5 @@
 
-import { Video } from '@/types';
+import { Video, Creator } from '@/types';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -59,5 +59,30 @@ export async function searchVideos(query: string): Promise<Video[]> {
   if (!response.ok) {
     throw new Error('Failed to search videos');
   }
+  return response.json();
+}
+
+// New API functions for creator support
+export async function fetchCreators(): Promise<Creator[]> {
+  const response = await fetch(`${API_BASE_URL}/creators`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch creators');
+  }
+  return response.json();
+}
+
+export async function fetchCreatorVideos(
+  creatorId: string,
+  page: number = 1,
+  limit: number = 12
+): Promise<CategoryVideosResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/videos/by-creator/${creatorId}?page=${page}&limit=${limit}`
+  );
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch videos for creator: ${creatorId}`);
+  }
+  
   return response.json();
 }

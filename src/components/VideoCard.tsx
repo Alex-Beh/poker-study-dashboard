@@ -1,13 +1,25 @@
 
 import React, { useState } from 'react';
 import { Video } from '@/types';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useProgress } from '@/contexts/ProgressContext';
-import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { X, Fullscreen, Minimize2 } from 'lucide-react';
+import { useUserCategories } from '@/contexts/UserCategoriesContext';
+import { useCreator } from '@/contexts/CreatorContext';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle 
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { Check } from 'lucide-react';
 
 interface VideoCardProps {
   video: Video;
@@ -15,169 +27,120 @@ interface VideoCardProps {
 
 const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   const { watchedVideos, toggleWatched } = useProgress();
+  const { userCategories, assignVideoToCategory, unassignVideoFromCategory, isVideoInCategory } = useUserCategories();
+  const { selectedCreator } = useCreator();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  
   const isWatched = watchedVideos.has(video.video_id);
-  const [videoOpen, setVideoOpen] = useState(false);
-  const [fullScreenMode, setFullScreenMode] = useState(false);
-  const [videoFullscreen, setVideoFullscreen] = useState(false);
-
-  const formatDuration = (seconds: number) => {
+  const formattedDuration = video.duration_min 
+    ? `${Math.floor(video.duration_min)}:${Math.round((video.duration_min % 1) * 60).toString().padStart(2, '0')}`
+    : formatDuration(video.duration);
+  
+  function formatDuration(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
+    const remainingSeconds = Math.round(seconds % 60);
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const handleClick = (e: React.MouseEvent) => {
-    // Don't open video if clicking on the checkbox or its container
-    if ((e.target as HTMLElement).closest('.checkbox-container')) {
-      e.preventDefault();
-      return;
+  }
+  
+  const userCategoriesForCreator = selectedCreator
+    ? userCategories.filter(cat => cat.creatorId === selectedCreator.id)
+    : [];
+  
+  const handleCategoryToggle = (categoryId: string, videoId: number, isChecked: boolean) => {
+    if (isChecked) {
+      assignVideoToCategory(categoryId, videoId);
+    } else {
+      unassignVideoFromCategory(categoryId, videoId);
     }
-    setVideoOpen(true);
   };
-
-  const handleThumbnailClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Now directly open the video in fullscreen
-    setVideoOpen(true);
-    setVideoFullscreen(true);
-  };
-
-  const toggleVideoFullscreen = () => {
-    setVideoFullscreen(!videoFullscreen);
-  };
-
-  const getEmbedUrl = (url: string) => {
-    // Handle YouTube URLs
-    const youtubeMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-    if (youtubeMatch && youtubeMatch[1]) {
-      return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
-    }
-    return url; // Return original URL if not YouTube
-  };
-
+  
   return (
-    <>
-      <Card 
-        className={cn(
-          "overflow-hidden transition-all hover:shadow-md cursor-pointer",
-          isWatched && "bg-muted"
-        )}
-        onClick={handleClick}
-      >
-        <div className="relative aspect-video overflow-hidden">
-          <img 
-            src={video.thumbnail} 
-            alt={video.title}
-            className="w-full h-full object-cover cursor-pointer"
-            onError={(e) => {
-              // Use a placeholder if the image fails to load
-              (e.target as HTMLImageElement).src = '/placeholder.svg';
-            }}
-            onClick={handleThumbnailClick}
-          />
-          {isWatched && (
-            <div className="absolute bottom-2 right-2 bg-success text-white text-xs px-2 py-1 rounded">
-              Watched
-            </div>
-          )}
-        </div>
-        
-        <CardContent className="pt-4">
-          <h3 className="font-medium line-clamp-2 min-h-[3rem]" title={video.title}>
-            {video.title}
-          </h3>
-        </CardContent>
-        
-        <CardFooter className="flex justify-between items-center pt-0">
-          <span className="text-sm text-muted-foreground">
-            {formatDuration(video.duration)}
-          </span>
-          
-          <div 
-            className="checkbox-container" 
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleWatched(video.video_id);
-            }}
-          >
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id={`watched-${video.video_id}`} 
-                checked={isWatched}
-              />
-              <label 
-                htmlFor={`watched-${video.video_id}`}
-                className="text-sm cursor-pointer select-none"
-              >
-                Watched
-              </label>
-            </div>
-          </div>
-        </CardFooter>
-      </Card>
-
-      {/* Fullscreen thumbnail mode */}
-      {fullScreenMode && (
+    <Card className={`overflow-hidden transition-all duration-200 ${isWatched ? 'opacity-60' : ''}`}>
+      <div className="relative">
         <div 
-          className="fixed inset-0 z-50 bg-black flex items-center justify-center"
-          onClick={() => setFullScreenMode(false)}
+          className="aspect-video bg-cover bg-center cursor-pointer" 
+          style={{ backgroundImage: `url(${video.thumbnail})` }}
+          onClick={() => setIsDialogOpen(true)}
         >
-          <button 
-            className="absolute top-4 right-4 text-white bg-black bg-opacity-40 p-2 rounded-full"
-            onClick={() => setFullScreenMode(false)}
-          >
-            <X className="h-6 w-6" />
-          </button>
-          <img 
-            src={video.thumbnail} 
-            alt={video.title}
-            className="max-h-screen max-w-full object-contain"
-            onError={(e) => {
-              // Use a placeholder if the image fails to load
-              (e.target as HTMLImageElement).src = '/placeholder.svg';
-            }}
+          <div className="absolute bottom-2 right-2 bg-black bg-opacity-80 text-white text-xs px-1 rounded">
+            {formattedDuration}
+          </div>
+        </div>
+        
+        <div className="absolute top-2 right-2">
+          <Checkbox 
+            checked={isWatched} 
+            onCheckedChange={() => toggleWatched(video.video_id)}
+            className="h-5 w-5 bg-white/90"
           />
         </div>
-      )}
-
-      {/* Video dialog */}
-      <Dialog open={videoOpen} onOpenChange={(open) => {
-        setVideoOpen(open);
-        if (!open) setVideoFullscreen(false);
-      }}>
-        <DialogContent className={cn(
-          "transition-all duration-300",
-          videoFullscreen ? "max-w-[100vw] w-[100vw] h-[100vh] p-0 border-0 rounded-none" : "max-w-4xl w-[90vw]"
-        )}>
-          {!videoFullscreen && (
-            <DialogHeader>
-              <DialogTitle className="text-lg mb-4">{video.title}</DialogTitle>
-            </DialogHeader>
+      </div>
+      
+      <div className="p-4">
+        <h3 className="text-sm font-medium line-clamp-2 mb-2">{video.title}</h3>
+        
+        <div className="flex justify-between items-center">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-xs"
+            onClick={() => setIsDialogOpen(true)}
+          >
+            Watch
+          </Button>
+          
+          {selectedCreator && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <span className="sr-only">Categories</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-folder"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {userCategoriesForCreator.length > 0 ? (
+                  userCategoriesForCreator.map(category => (
+                    <DropdownMenuItem 
+                      key={category.id}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const isInCategory = isVideoInCategory(category.id, video.video_id);
+                        handleCategoryToggle(category.id, video.video_id, !isInCategory);
+                      }}
+                      className="flex items-center justify-between cursor-pointer"
+                    >
+                      <span>{category.name}</span>
+                      {isVideoInCategory(category.id, video.video_id) && (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled>No custom categories</DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-          <div className={cn(
-            "relative",
-            videoFullscreen ? "w-full h-full" : "aspect-video w-full overflow-hidden rounded"
-          )}>
-            <iframe
-              src={getEmbedUrl(video.url)}
-              title={video.title}
+        </div>
+      </div>
+      
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-4xl w-full">
+          <DialogHeader>
+            <DialogTitle className="text-lg">{video.title}</DialogTitle>
+          </DialogHeader>
+          <div className="aspect-video w-full">
+            <iframe 
+              src={`${video.url}?autoplay=1`}
               className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
-              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             />
-            <Button
-              variant="outline"
-              size="icon"
-              className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm"
-              onClick={toggleVideoFullscreen}
-            >
-              {videoFullscreen ? <Minimize2 /> : <Fullscreen />}
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </Card>
   );
 };
 

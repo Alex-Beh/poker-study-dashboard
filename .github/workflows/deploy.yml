@@ -1,3 +1,4 @@
+
 name: Test, Build and Deploy
 on:
   push:
@@ -18,8 +19,13 @@ jobs:
         run: |
           npm ci
           npm run build
+      - name: Configure base path
+        run: |
+          echo "VITE_BASE_PATH=/poker-study-dashboard" >> .env
       - name: Copy index.html to 404.html
         run: cp dist/index.html dist/404.html
+      - name: Create .nojekyll file
+        run: touch dist/.nojekyll
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:

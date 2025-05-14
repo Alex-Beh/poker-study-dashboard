@@ -8,6 +8,12 @@ export interface Video {
   categories?: string[];
   sequence?: number;
   duration_min?: number;
+  creator_id?: string;
+}
+
+export interface Creator {
+  id: string;
+  name: string;
 }
 
 export interface Category {
@@ -16,6 +22,14 @@ export interface Category {
   videos: Video[];
   watchedCount: number;
   count?: number;
+  isUserDefined?: boolean;
+}
+
+export interface UserCategory {
+  id: string;
+  name: string;
+  creatorId: string;
+  videoIds: number[];
 }
 
 export interface ProgressContextType {

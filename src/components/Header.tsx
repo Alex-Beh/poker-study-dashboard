@@ -3,11 +3,13 @@ import React, { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useProgress } from '@/contexts/ProgressContext';
+import { useCreator } from '@/contexts/CreatorContext';
 import { Video } from '@/types';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/use-toast';
 import { useToast } from '@/components/ui/use-toast';
+import CreatorDropdown from './CreatorDropdown';
 
 interface HeaderProps {
   videos: Video[];
@@ -15,11 +17,22 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ videos }) => {
   const { watchedVideos, resetProgress, exportProgress, importProgress } = useProgress();
+  const { selectedCreator } = useCreator();
   const { toast } = useToast();
   const [importText, setImportText] = React.useState('');
   
-  const totalVideos = useMemo(() => new Set(videos.map(v => v.video_id)).size, [videos]);
-  const watchedCount = watchedVideos.size;
+  // Filter videos by selected creator if applicable
+  const filteredVideos = useMemo(() => {
+    if (!selectedCreator) return videos;
+    return videos.filter(v => v.creator_id === selectedCreator.id);
+  }, [videos, selectedCreator]);
+  
+  const totalVideos = useMemo(() => new Set(filteredVideos.map(v => v.video_id)).size, [filteredVideos]);
+  const watchedCount = useMemo(() => {
+    return [...watchedVideos].filter(id => 
+      filteredVideos.some(v => v.video_id === id)
+    ).length;
+  }, [watchedVideos, filteredVideos]);
   
   const overallProgress = useMemo(() => {
     return totalVideos > 0 ? (watchedCount / totalVideos) * 100 : 0;
@@ -66,7 +79,11 @@ const Header: React.FC<HeaderProps> = ({ videos }) => {
       <div className="container mx-auto">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl font-bold">Poker Training Tracker</h1>
+            <div className="flex flex-col md:flex-row md:items-center gap-4 mb-2">
+              <h1 className="text-2xl font-bold">Poker Training Tracker</h1>
+              <CreatorDropdown />
+            </div>
+            
             <div className="flex items-center gap-2 mt-2">
               <Progress value={overallProgress} className="h-2 flex-1" />
               <span className="text-sm font-medium whitespace-nowrap">

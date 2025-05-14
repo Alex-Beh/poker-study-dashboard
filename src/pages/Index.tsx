@@ -1,33 +1,90 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Header from '@/components/Header';
 import CategorySidebar from '@/components/CategorySidebar';
 import VideoGrid from '@/components/VideoGrid';
 import { ProgressProvider } from '@/contexts/ProgressContext';
-import { fetchAllVideos, fetchCategoryVideos } from '@/services/api';
+import { UserCategoriesProvider } from '@/contexts/UserCategoriesContext';
+import { CreatorProvider, useCreator } from '@/contexts/CreatorContext';
+import { fetchAllVideos, fetchCategoryVideos, fetchCreatorVideos } from '@/services/api';
 import { Video } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useUserCategories } from '@/contexts/UserCategoriesContext';
 
-const Index = () => {
+const IndexContent = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const { selectedCreator } = useCreator();
+  const { userCategories } = useUserCategories();
   
   // Fetch all videos for categories
   const { data: allVideos, isLoading: isLoadingAllVideos } = useQuery({
-    queryKey: ['videos'],
+    queryKey: ['videos', selectedCreator?.id],
     queryFn: fetchAllVideos
   });
   
-  // Fetch paginated videos for the selected category
+  // Fetch paginated videos for the selected category or creator
   const { 
     data: categoryData, 
     isLoading: isLoadingCategory,
     error 
   } = useQuery({
-    queryKey: ['videos', selectedCategory, currentPage],
-    queryFn: () => fetchCategoryVideos(selectedCategory, currentPage),
-    enabled: !!selectedCategory,
+    queryKey: ['videos', selectedCategory, currentPage, selectedCreator?.id],
+    queryFn: () => {
+      // Check if it's a user-defined category
+      const userCategory = userCategories.find(c => 
+        c.name === selectedCategory && (!selectedCreator || c.creatorId === selectedCreator.id)
+      );
+      
+      if (userCategory) {
+        // For user categories, filter all videos to get those in the category
+        if (allVideos) {
+          const filteredVideos = allVideos.filter(video => 
+            userCategory.videoIds.includes(video.video_id)
+          );
+          
+          // Manual pagination for user categories
+          const total = filteredVideos.length;
+          const limit = 12;
+          const totalPages = Math.ceil(total / limit);
+          const start = (currentPage - 1) * limit;
+          const end = start + limit;
+          const paginatedVideos = filteredVideos.slice(start, end);
+          
+          return Promise.resolve({
+            videos: paginatedVideos,
+            page: currentPage,
+            limit,
+            total,
+            total_pages: totalPages
+          });
+        }
+        return Promise.resolve({
+          videos: [],
+          page: 1,
+          limit: 12,
+          total: 0,
+          total_pages: 1
+        });
+      }
+      
+      // For system categories or when no category is selected
+      if (selectedCreator && !selectedCategory) {
+        return fetchCreatorVideos(selectedCreator.id, currentPage);
+      } else if (selectedCategory) {
+        return fetchCategoryVideos(selectedCategory, currentPage);
+      } else {
+        return Promise.resolve({
+          videos: [],
+          page: 1,
+          limit: 12,
+          total: 0,
+          total_pages: 1
+        });
+      }
+    },
+    enabled: !!selectedCategory || !!selectedCreator,
   });
   
   const categoryVideos = categoryData?.videos || [];
@@ -49,11 +106,18 @@ const Index = () => {
       }
     });
     
+    // Add user categories to the map
+    userCategories.forEach(category => {
+      if (selectedCreator && category.creatorId === selectedCreator.id) {
+        map[category.name] = category.videoIds;
+      }
+    });
+    
     return map;
-  }, [allVideos]);
+  }, [allVideos, userCategories, selectedCreator]);
   
   // Set initial category when data is loaded
-  React.useEffect(() => {
+  useEffect(() => {
     if (allVideos && allVideos.length > 0 && !selectedCategory) {
       // Get first category from the first video
       const firstVideo = allVideos[0];
@@ -63,10 +127,10 @@ const Index = () => {
     }
   }, [allVideos, selectedCategory]);
 
-  // Reset to page 1 when changing categories
-  React.useEffect(() => {
+  // Reset to page 1 when changing categories or creators
+  useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategory]);
+  }, [selectedCategory, selectedCreator]);
   
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -74,7 +138,7 @@ const Index = () => {
     window.scrollTo(0, 0);
   };
 
-  const isLoading = isLoadingAllVideos || (isLoadingCategory && selectedCategory);
+  const isLoading = isLoadingAllVideos || (isLoadingCategory && (!!selectedCategory || !!selectedCreator));
 
   if (isLoading) {
     return (
@@ -108,25 +172,35 @@ const Index = () => {
   }
 
   return (
-    <ProgressProvider>
-      <div className="min-h-screen flex flex-col">
-        <Header videos={allVideos || []} />
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-          <CategorySidebar
-            categoryMap={categoryMap}
-            videos={allVideos || []}
-            selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
-          />
-          <VideoGrid 
-            videos={categoryVideos}
-            categoryName={selectedCategory}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
-        </div>
+    <div className="min-h-screen flex flex-col">
+      <Header videos={allVideos || []} />
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        <CategorySidebar
+          categoryMap={categoryMap}
+          videos={allVideos || []}
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+        />
+        <VideoGrid 
+          videos={categoryVideos}
+          categoryName={selectedCategory || (selectedCreator ? `All ${selectedCreator.name} Videos` : 'All Videos')}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
       </div>
+    </div>
+  );
+};
+
+const Index = () => {
+  return (
+    <ProgressProvider>
+      <CreatorProvider>
+        <UserCategoriesProvider>
+          <IndexContent />
+        </UserCategoriesProvider>
+      </CreatorProvider>
     </ProgressProvider>
   );
 };
