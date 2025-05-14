@@ -17,8 +17,8 @@ export const videosApi = {
   },
 
   getByCategory: async (
-    category: string, 
-    page: number = 1, 
+    category: string,
+    page: number = 1,
     limit: number = 12
   ): Promise<CategoryVideosResponse> => {
     const categorySlug = category.toLowerCase().replace(/\W+/g, '-');
@@ -36,9 +36,13 @@ export const videosApi = {
     return response.data;
   },
 
-  getByCreator: async (creatorSlug: string): Promise<Video[]> => {
-    const response = await api.get(`/videos?creator=${encodeURIComponent(creatorSlug)}`);
-    return response.data;
+  getByCreator: async (
+    youtuberId: number,
+    page: number = 1,
+    limit: number = 20
+  ): Promise<CategoryVideosResponse> => {
+    const response = await api.get(`/videos/by-creator/${youtuberId}?page=${page}&limit=${limit}`);
+    return response.data.data; // backend wraps it inside `data`
   },
 
   markAsWatched: async (videoId: number): Promise<{ watched: boolean }> => {
@@ -57,7 +61,7 @@ export const categoriesApi = {
   delete: async (slug: string): Promise<void> => {
     await api.delete(`/categories/${slug}`);
   },
-  
+
   create: async (data: { name: string, slug: string }): Promise<CategoryItem> => {
     const response = await api.post('/categories', data);
     return response.data.data;
@@ -74,7 +78,7 @@ export const tagsApi = {
   delete: async (slug: string): Promise<void> => {
     await api.delete(`/tags/${slug}`);
   },
-  
+
   create: async (data: { name: string, slug: string }): Promise<any> => {
     const response = await api.post('/tags', data);
     return response.data.data;
