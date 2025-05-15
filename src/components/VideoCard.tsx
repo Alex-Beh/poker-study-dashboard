@@ -37,8 +37,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const queryClient = useQueryClient();
   
-  // Ensure video_id is a number for consistent comparison
-  const videoId = typeof video.video_id === 'string' ? parseInt(video.video_id, 10) : video.video_id;
+  // Ensure id is a number for consistent comparison, it is primary key in DB
+  const videoId = Number(video.id);
   
   // Check if the video is watched
   const isWatched = video.watched || watchedVideos.has(videoId);
