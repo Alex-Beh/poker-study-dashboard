@@ -24,10 +24,10 @@ const normalizeResponse = (response: any) => {
 // Handle API errors consistently
 const handleApiError = (error: any): never => {
   console.error('API Error:', error);
-  const errorMsg = 
-    error?.response?.data?.message || 
-    error?.response?.data?.errors?.general || 
-    error?.message || 
+  const errorMsg =
+    error?.response?.data?.message ||
+    error?.response?.data?.errors?.general ||
+    error?.message ||
     'Unknown API error';
   throw new Error(errorMsg);
 };
@@ -93,15 +93,36 @@ export const videosApi = {
     try {
       // Ensure videoId is properly parsed as a number
       const id = typeof videoId === 'string' ? parseInt(videoId, 10) : videoId;
-      
+
       if (isNaN(id as number)) {
         throw new Error('Invalid video ID');
       }
-      
+
       console.log("Marking video as watched:", id);
-      
+
       const response = await api.patch(`/videos/${id}/watch`);
       return normalizeResponse(response) || { watched: true };
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+  markAsUnwatched: async (videoId: number | string): Promise<{ watched: boolean }> => {
+    try {
+      const id = typeof videoId === 'string' ? parseInt(videoId, 10) : videoId;
+      if (isNaN(id)) throw new Error('Invalid video ID');
+
+      console.log("Marking video as unwatched:", id);
+      const response = await api.patch(`/videos/${id}/unwatch`);
+      return normalizeResponse(response) || { watched: false };
+    } catch (error) {
+      return handleApiError(error);
+    }
+  },
+
+  resetProgress: async (): Promise<{ reset_count: number }> => {
+    try {
+      const response = await api.patch('/videos/reset-progress');
+      return normalizeResponse(response) || { reset_count: 0 };
     } catch (error) {
       return handleApiError(error);
     }
