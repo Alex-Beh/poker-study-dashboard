@@ -20,23 +20,34 @@ const IndexContent = () => {
   const { data: allVideos, isLoading: isLoadingAllVideos } = useQuery({
     queryKey: ['videos'],
     queryFn: () => videosApi.getAll(),
-    staleTime: 60000 // Keep data fresh for 1 minute
+    staleTime: 30000 // Keep data fresh for 30 seconds
   });
 
   // Fetch specific creator videos when a creator is selected
   const { data: creatorVideos, isLoading: isLoadingCreatorVideos } = useQuery({
     queryKey: ['videos', 'creator', selectedCreator?.id],
-    queryFn: () => selectedCreator ? videosApi.getByCreator(selectedCreator.id) : Promise.resolve({ videos: [] }),
+    queryFn: () => selectedCreator ? videosApi.getByCreator(selectedCreator.id) : Promise.resolve({ videos: [], page: 1, limit: 100, total: 0, total_pages: 1 }),
     enabled: !!selectedCreator,
-    staleTime: 60000 // Keep data fresh for 1 minute
+    staleTime: 30000 // Keep data fresh for 30 seconds
   });
   
   // Videos to display based on creator selection
   const currentCreatorVideos = selectedCreator && creatorVideos?.videos ? creatorVideos.videos : (allVideos || []);
   
+  // Sort videos by ID to maintain consistent ordering
+  const sortedVideos = React.useMemo(() => {
+    if (!currentCreatorVideos.length) return [];
+    
+    return [...currentCreatorVideos].sort((a, b) => {
+      const idA = a.id ? Number(a.id) : 0;
+      const idB = b.id ? Number(b.id) : 0;
+      return idA - idB;
+    });
+  }, [currentCreatorVideos]);
+  
   // Build category map from current creator videos using id as the key
   const categoryMap = React.useMemo(() => {
-    const videos = currentCreatorVideos;
+    const videos = sortedVideos;
     if (!videos || videos.length === 0) return {};
     
     const map: Record<string, number[]> = {};
@@ -46,14 +57,15 @@ const IndexContent = () => {
         
         categoryList.forEach(category => {
           const categoryName = typeof category === 'string' ? category : 
-                            (category && typeof category === 'object' && 'name' in category ? category.name : null);
+                              (category && typeof category === 'object' && 'name' in category ? category.name : null);
           
           if (categoryName) {
             if (!map[categoryName]) {
               map[categoryName] = [];
             }
-            const videoId = typeof video.id === 'number' ? video.id : parseInt(video.id as string, 10);
-            if (!isNaN(videoId) && !map[categoryName].includes(videoId)) {
+            
+            const videoId = video.id ? Number(video.id) : null;
+            if (videoId && !map[categoryName].includes(videoId)) {
               map[categoryName].push(videoId);
             }
           }
@@ -62,20 +74,20 @@ const IndexContent = () => {
     });
     
     return map;
-  }, [currentCreatorVideos]);
+  }, [sortedVideos]);
   
   // Filter videos by selected category
   const categoryVideos = React.useMemo(() => {
     if (!selectedCategory || selectedCategory === '') {
-      return currentCreatorVideos;
+      return sortedVideos;
     }
     
     const categoryIds = categoryMap[selectedCategory] || [];
-    return currentCreatorVideos.filter(video => {
-      const videoId = typeof video.id === 'number' ? video.id : parseInt(video.id as string, 10);
-      return !isNaN(videoId) && categoryIds.includes(videoId);
+    return sortedVideos.filter(video => {
+      const videoId = video.id ? Number(video.id) : null;
+      return videoId && categoryIds.includes(videoId);
     });
-  }, [currentCreatorVideos, selectedCategory, categoryMap]);
+  }, [sortedVideos, selectedCategory, categoryMap]);
   
   // Set initial category when data is loaded
   useEffect(() => {
@@ -87,7 +99,6 @@ const IndexContent = () => {
   // Reset to page 1 when changing categories
   useEffect(() => {
     setCurrentPage(1);
-    // Log for debugging
     console.log("Selected category changed to:", selectedCategory);
     console.log("Videos for category:", categoryVideos.length);
   }, [selectedCategory]);
@@ -138,7 +149,7 @@ const IndexContent = () => {
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         <CategorySidebar
           categoryMap={categoryMap}
-          videos={currentCreatorVideos}
+          videos={sortedVideos}
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
         />

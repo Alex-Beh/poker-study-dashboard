@@ -38,10 +38,10 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   const queryClient = useQueryClient();
   
   // Ensure we have a valid ID to work with (using id as the primary key)
-  const videoId = typeof video.id === 'number' ? video.id : parseInt(video.id as string, 10);
+  const videoId = video.id ? Number(video.id) : null;
   
   // Check if the video is watched
-  const isWatched = video.watched || watchedVideos.has(videoId);
+  const isWatched = video.watched || (videoId && watchedVideos.has(videoId));
   
   // Format the duration
   const formattedDuration = video.duration_min 
@@ -74,7 +74,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
     mutationFn: (id: number) => videosApi.markAsWatched(id),
     onSuccess: () => {
       // Update local state first for immediate UI feedback
-      toggleWatched(videoId);
+      if (videoId) toggleWatched(videoId);
       
       // Then refresh data from server
       queryClient.invalidateQueries({ queryKey: ['videos'] });
@@ -93,22 +93,45 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
     }
   });
   
+  // Mutation for marking a video as unwatched
+  const unwatchMutation = useMutation({
+    mutationFn: (id: number) => videosApi.markAsUnwatched(id),
+    onSuccess: () => {
+      // Update local state first for immediate UI feedback
+      if (videoId) toggleWatched(videoId);
+      
+      // Then refresh data from server
+      queryClient.invalidateQueries({ queryKey: ['videos'] });
+      
+      toast({
+        title: "Video Marked as Unwatched",
+        description: "Your progress has been updated."
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to Mark Video",
+        description: (error as Error).message
+      });
+    }
+  });
+  
   // Handle watched toggle
   const handleWatchedToggle = () => {
-    console.log("Video ID: ", videoId);
-    if (!isNaN(videoId)) {
-      if (!isWatched) {
-        watchMutation.mutate(videoId);
-      } else {
-        // Just use the local toggle for now
-        toggleWatched(videoId);
-      }
-    } else {
+    if (!videoId) {
       toast({
         variant: "destructive",
         title: "Cannot Mark Video",
         description: "Invalid video ID"
       });
+      return;
+    }
+    
+    if (!isWatched) {
+      watchMutation.mutate(videoId);
+    } else {
+      unwatchMutation.mutate(videoId);
     }
   };
 
@@ -193,13 +216,15 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
                       key={category.id}
                       onClick={(e) => {
                         e.preventDefault();
-                        const isInCategory = isVideoInCategory(category.id, videoId);
-                        handleCategoryToggle(category.id, videoId, !isInCategory);
+                        if (videoId) {
+                          const isInCategory = isVideoInCategory(category.id, videoId);
+                          handleCategoryToggle(category.id, videoId, !isInCategory);
+                        }
                       }}
                       className="flex items-center justify-between cursor-pointer"
                     >
                       <span>{category.name}</span>
-                      {isVideoInCategory(category.id, videoId) && (
+                      {videoId && isVideoInCategory(category.id, videoId) && (
                         <Check className="h-4 w-4" />
                       )}
                     </DropdownMenuItem>
@@ -245,7 +270,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
             </Button>
             <Button 
               onClick={() => {
-                if (!isWatched && !isNaN(videoId)) {
+                if (!isWatched && videoId) {
                   watchMutation.mutate(videoId);
                 }
                 setIsDialogOpen(false);

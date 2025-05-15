@@ -1,4 +1,3 @@
-
 import { Video, Creator, CategoryResponse, YoutubersResponse, CategoryItem } from '@/types';
 import axios from 'axios';
 
@@ -58,8 +57,7 @@ export const videosApi = {
 
   getById: async (videoId: number | string): Promise<Video> => {
     try {
-      const id = typeof videoId === 'string' ? parseInt(videoId, 10) : videoId;
-      const response = await api.get(`/videos/${id}`);
+      const response = await api.get(`/videos/${videoId}`);
       return normalizeResponse(response);
     } catch (error) {
       return handleApiError(error);
@@ -81,38 +79,27 @@ export const videosApi = {
     limit: number = 100 // Increased limit to get more videos at once
   ): Promise<CategoryVideosResponse> => {
     try {
-      const id = typeof youtuberId === 'string' ? parseInt(youtuberId, 10) : youtuberId;
-      const response = await api.get(`/videos/by-creator/${id}?page=${page}&limit=${limit}`);
+      const response = await api.get(`/videos/by-creator/${youtuberId}?page=${page}&limit=${limit}`);
       return normalizeResponse(response) || { videos: [], page: 1, limit, total: 0, total_pages: 1 };
     } catch (error) {
       return handleApiError(error);
     }
   },
 
-  markAsWatched: async (videoId: number | string): Promise<{ watched: boolean }> => {
+  markAsWatched: async (videoId: number): Promise<{ watched: boolean }> => {
     try {
-      // Ensure videoId is properly parsed as a number
-      const id = typeof videoId === 'string' ? parseInt(videoId, 10) : videoId;
-
-      if (isNaN(id as number)) {
-        throw new Error('Invalid video ID');
-      }
-
-      console.log("Marking video as watched:", id);
-
-      const response = await api.patch(`/videos/${id}/watch`);
+      console.log("Marking video as watched:", videoId);
+      const response = await api.patch(`/videos/${videoId}/watch`);
       return normalizeResponse(response) || { watched: true };
     } catch (error) {
       return handleApiError(error);
     }
   },
-  markAsUnwatched: async (videoId: number | string): Promise<{ watched: boolean }> => {
+  
+  markAsUnwatched: async (videoId: number): Promise<{ watched: boolean }> => {
     try {
-      const id = typeof videoId === 'string' ? parseInt(videoId, 10) : videoId;
-      if (isNaN(id)) throw new Error('Invalid video ID');
-
-      console.log("Marking video as unwatched:", id);
-      const response = await api.patch(`/videos/${id}/unwatch`);
+      console.log("Marking video as unwatched:", videoId);
+      const response = await api.patch(`/videos/${videoId}/unwatch`);
       return normalizeResponse(response) || { watched: false };
     } catch (error) {
       return handleApiError(error);

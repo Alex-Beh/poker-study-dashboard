@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { ProgressContextType } from '../types';
 import { videosApi } from '@/services/api';
@@ -29,8 +30,8 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
         const watched = new Set<number>();
 
         allVideos.forEach(video => {
-          const videoId = typeof video.id === 'number' ? video.id : parseInt(video.id as string, 10);
-          if (!isNaN(videoId) && video.watched) {
+          const videoId = video.id ? Number(video.id) : null;
+          if (videoId && video.watched) {
             watched.add(videoId);
           }
         });
@@ -45,44 +46,27 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
   }, []);
 
   // Toggle watched state
-  const toggleWatched = async (videoId: number) => {
-    try {
-      const isWatched = watchedVideos.has(videoId);
-
-      if (isWatched) {
-        await videosApi.markAsUnwatched(videoId);
+  const toggleWatched = (videoId: number) => {
+    setWatchedVideos(prevWatched => {
+      const newWatched = new Set(prevWatched);
+      if (newWatched.has(videoId)) {
+        newWatched.delete(videoId);
       } else {
-        await videosApi.markAsWatched(videoId);
+        newWatched.add(videoId);
       }
-
-      // Update local state
-      setWatchedVideos(prevWatched => {
-        const newWatched = new Set(prevWatched);
-        if (newWatched.has(videoId)) {
-          newWatched.delete(videoId);
-        } else {
-          newWatched.add(videoId);
-        }
-        return newWatched;
-      });
-    } catch (error) {
-      console.error('Error updating watched status:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update watched status on the server."
-      });
-    }
+      return newWatched;
+    });
   };
 
   // Reset all watched progress
   const resetProgress = async () => {
     try {
-      await videosApi.resetProgress();
+      const result = await videosApi.resetProgress();
       setWatchedVideos(new Set());
+      
       toast({
         title: "Progress Reset",
-        description: "All watched statuses have been reset."
+        description: `${result.reset_count} videos have been marked as unwatched.`
       });
     } catch (error) {
       console.error('Error resetting progress:', error);

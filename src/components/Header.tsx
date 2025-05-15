@@ -30,20 +30,24 @@ const Header: React.FC<HeaderProps> = ({ videos }) => {
     });
   }, [videos, selectedCreator]);
   
-  // Use id as primary key for consistent comparison
+  // Count total videos with valid IDs
   const totalVideos = useMemo(() => {
-    return new Set(filteredVideos.map(v => {
-      const videoId = typeof v.id === 'number' ? v.id : parseInt(v.id as string, 10);
-      return !isNaN(videoId) ? videoId : null;
-    }).filter(Boolean)).size;
+    return new Set(filteredVideos
+      .map(v => v.id ? Number(v.id) : null)
+      .filter(id => id !== null)
+    ).size;
   }, [filteredVideos]);
   
+  // Count watched videos from server data and local state
   const watchedCount = useMemo(() => {
+    // Count videos marked as watched on the server
     const serverWatchedCount = filteredVideos.filter(v => v.watched).length;
+    
+    // Count videos that are marked as watched locally but not on the server
     const localWatchedCount = [...watchedVideos].filter(id => 
       filteredVideos.some(v => {
-        const videoId = typeof v.id === 'number' ? v.id : parseInt(v.id as string, 10);
-        return !isNaN(videoId) && videoId === id && !v.watched;
+        const videoId = v.id ? Number(v.id) : null;
+        return videoId === id && !v.watched;
       })
     ).length;
     
