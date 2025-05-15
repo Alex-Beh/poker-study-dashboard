@@ -210,13 +210,15 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
             <DialogTitle className="text-lg">{video.title}</DialogTitle>
           </DialogHeader>
           <div className="aspect-video w-full">
-            <iframe 
-              id={`video-iframe-${videoId}`}
-              src={`${videoUrl}?autoplay=1`}
-              className="w-full h-full"
-              allowFullScreen
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            />
+            {videoUrl && (
+              <iframe 
+                id={`video-iframe-${videoId}`}
+                src={`${videoUrl}?autoplay=1`}
+                className="w-full h-full"
+                allowFullScreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              />
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={toggleFullScreen}>

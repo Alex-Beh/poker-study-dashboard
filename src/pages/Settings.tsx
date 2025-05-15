@@ -15,19 +15,16 @@ const Settings = () => {
   const navigate = useNavigate();
   
   // Fetch categories
-  const { data: categoryResponse } = useQuery({
+  const { data: categories } = useQuery({
     queryKey: ['categories'],
     queryFn: categoriesApi.getAll
   });
   
   // Fetch tags
-  const { data: tagsResponse, isLoading: isLoadingTags, error: tagsError } = useQuery({
+  const { data: tags, isLoading: isLoadingTags, error: tagsError } = useQuery({
     queryKey: ['tags'],
     queryFn: tagsApi.getAll
   });
-  
-  // Get tags from the API response
-  const tags = tagsResponse?.data || [];
   
   return (
     <div className="container mx-auto p-6">
@@ -55,7 +52,11 @@ const Settings = () => {
         </TabsContent>
         
         <TabsContent value="tags">
-          <TagManager tags={tags} isLoading={isLoadingTags} error={tagsError as Error | null} />
+          <TagManager 
+            tags={tags || []} 
+            isLoading={isLoadingTags} 
+            error={tagsError as Error | null} 
+          />
         </TabsContent>
       </Tabs>
       

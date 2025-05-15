@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 const UserCategoryManager = () => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const { selectedCreator } = useCreator();
-  const { userCategories, addCategory, removeCategory } = useUserCategories();
+  const { userCategories, addCategory, deleteCategory } = useUserCategories();
   const { toast } = useToast();
 
   // Filter categories for the selected creator
@@ -55,7 +55,7 @@ const UserCategoryManager = () => {
   };
 
   const handleRemoveCategory = (categoryId: string) => {
-    removeCategory(categoryId);
+    deleteCategory(categoryId);
     toast({
       title: 'Category Removed',
       description: 'The category has been removed.'

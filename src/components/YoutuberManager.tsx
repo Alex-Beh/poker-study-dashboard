@@ -1,103 +1,119 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchYoutubers, createYoutuber, deleteYoutuber } from '@/services/api';
-import { Creator } from '@/types';
+import { youtubersApi } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/use-toast';
-import { Plus, Trash } from 'lucide-react';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Trash, Plus } from 'lucide-react';
 
 const YoutuberManager: React.FC = () => {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
   const [newYoutuberName, setNewYoutuberName] = useState('');
   const [newYoutuberSlug, setNewYoutuberSlug] = useState('');
-  const [newYoutuberChannel, setNewYoutuberChannel] = useState('');
+  const [newYoutuberUrl, setNewYoutuberUrl] = useState('');
 
-  const queryClient = useQueryClient();
-
-  const { data: youtuberResponse, isLoading, error } = useQuery({
+  // Fetch youtubers
+  const { data, isLoading, error } = useQuery({
     queryKey: ['youtubers'],
-    queryFn: fetchYoutubers
+    queryFn: youtubersApi.getAll
   });
+  
+  // Extract youtubers from the data
+  const youtubers = data || [];
 
-  const youtubers = youtuberResponse ?? [];
-
-  const createMutation = useMutation({
-    mutationFn: ({ name, slug, channelUrl }: { name: string, slug: string, channelUrl?: string }) =>
-      createYoutuber(name, slug, channelUrl),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['youtubers'] });
-      setIsDialogOpen(false);
-      resetForm();
-      toast({
-        title: "Youtuber Created",
-        description: `Successfully created youtuber: ${newYoutuberName}`
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: "destructive",
-        title: "Creation Failed",
-        description: `Failed to create youtuber: ${error.message}`
-      });
-    }
-  });
-
+  // Delete youtuber mutation
   const deleteMutation = useMutation({
-    mutationFn: (slug: string) => deleteYoutuber(slug),
-    onSuccess: (_, slug) => {
+    mutationFn: youtubersApi.delete,
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['youtubers'] });
       toast({
         title: "Youtuber Deleted",
-        description: `Successfully deleted youtuber`
+        description: "Youtuber has been deleted successfully"
       });
     },
     onError: (error) => {
       toast({
         variant: "destructive",
         title: "Deletion Failed",
-        description: `Failed to delete youtuber: ${error.message}`
+        description: `Failed to delete youtuber: ${(error as Error).message}`
       });
     }
   });
 
+  // Create youtuber mutation
+  const createMutation = useMutation({
+    mutationFn: (data: { name: string, slug: string, channelUrl?: string }) => 
+      youtubersApi.create(data.name, data.slug, data.channelUrl),
+    onSuccess: () => {
+      resetForm();
+      queryClient.invalidateQueries({ queryKey: ['youtubers'] });
+      toast({
+        title: "Youtuber Created",
+        description: "New youtuber has been added successfully"
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Creation Failed",
+        description: `Failed to create youtuber: ${(error as Error).message}`
+      });
+    }
+  });
+
+  const handleDeleteYoutuber = (slug: string, name: string) => {
+    if (confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) {
+      deleteMutation.mutate(slug);
+    }
+  };
+
+  const generateSlug = (name: string) => {
+    return name.toLowerCase().replace(/\s+/g, '-');
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const name = e.target.value;
+    setNewYoutuberName(name);
+    
+    // Auto-generate slug if user hasn't manually set one
+    if (!newYoutuberSlug || newYoutuberSlug === generateSlug(newYoutuberName)) {
+      setNewYoutuberSlug(generateSlug(name));
+    }
+  };
+
   const handleCreateYoutuber = (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!newYoutuberName || !newYoutuberSlug) {
       toast({
         variant: "destructive",
-        title: "Invalid Input",
-        description: "Both name and slug are required"
+        title: "Missing Information",
+        description: "Name and slug are required"
       });
       return;
     }
-
+    
     createMutation.mutate({
       name: newYoutuberName,
       slug: newYoutuberSlug,
-      channelUrl: newYoutuberChannel || undefined
+      channelUrl: newYoutuberUrl || undefined
     });
-  };
-
-  const handleDeleteYoutuber = (youtuber: Creator) => {
-    if (confirm(`Are you sure you want to delete ${youtuber.name}?`)) {
-      deleteMutation.mutate(youtuber.slug);
-    }
   };
 
   const resetForm = () => {
     setNewYoutuberName('');
     setNewYoutuberSlug('');
-    setNewYoutuberChannel('');
+    setNewYoutuberUrl('');
   };
+
+  if (isLoading) {
+    return <div className="p-4 animate-pulse bg-muted rounded">Loading youtubers...</div>;
+  }
 
   if (error) {
     return (
-      <div className="p-4 bg-destructive/10 text-destructive rounded">
+      <div className="p-4 text-destructive bg-destructive/10 rounded">
         <p>Error loading youtubers: {(error as Error).message}</p>
       </div>
     );
@@ -105,108 +121,81 @@ const YoutuberManager: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold">Manage Youtubers</h2>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Youtuber
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Youtuber</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreateYoutuber} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  value={newYoutuberName}
-                  onChange={e => setNewYoutuberName(e.target.value)}
-                  placeholder="Youtuber Name"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="slug">Slug</Label>
-                <Input
-                  id="slug"
-                  value={newYoutuberSlug}
-                  onChange={e => setNewYoutuberSlug(e.target.value)}
-                  placeholder="youtuber-slug"
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  URL-friendly identifier (lower-case, no spaces)
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="channel">YouTube Channel URL (optional)</Label>
-                <Input
-                  id="channel"
-                  value={newYoutuberChannel}
-                  onChange={e => setNewYoutuberChannel(e.target.value)}
-                  placeholder="https://youtube.com/channel/..."
-                />
-              </div>
-              <DialogFooter>
-                <Button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                >
-                  {createMutation.isPending ? 'Creating...' : 'Create Youtuber'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-24 bg-muted animate-pulse rounded"></div>
-          ))}
+      <h2 className="text-xl font-bold">Manage Youtubers</h2>
+      
+      <form onSubmit={handleCreateYoutuber} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor="name" className="text-sm font-medium mb-1 block">Name</label>
+            <Input 
+              id="name"
+              value={newYoutuberName} 
+              onChange={handleNameChange}
+              placeholder="e.g., Daniel Negreanu"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="slug" className="text-sm font-medium mb-1 block">Slug</label>
+            <Input 
+              id="slug"
+              value={newYoutuberSlug} 
+              onChange={(e) => setNewYoutuberSlug(e.target.value)}
+              placeholder="e.g., daniel-negreanu"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="url" className="text-sm font-medium mb-1 block">Channel URL (optional)</label>
+            <Input 
+              id="url"
+              value={newYoutuberUrl} 
+              onChange={(e) => setNewYoutuberUrl(e.target.value)}
+              placeholder="https://youtube.com/c/..."
+            />
+          </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {youtubers.length > 0 ? youtubers.map((youtuber) => (
-            <Card key={youtuber.id} className="flex flex-col">
-              <CardContent className="flex-1 pt-6">
-                <h3 className="font-medium">{youtuber.name}</h3>
-                {youtuber.channel_url && (
-                  <a
-                    href={youtuber.channel_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-500 hover:underline"
+        
+        <Button type="submit" disabled={!newYoutuberName || !newYoutuberSlug || createMutation.isPending}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Youtuber
+        </Button>
+      </form>
+      
+      <div className="rounded-md border">
+        <div className="p-4 bg-muted/50">
+          <div className="grid grid-cols-3 font-medium">
+            <div>Name</div>
+            <div>Slug</div>
+            <div className="text-right">Actions</div>
+          </div>
+        </div>
+        
+        <div className="divide-y">
+          {youtubers.length > 0 ? (
+            youtubers.map((youtuber) => (
+              <div key={youtuber.id || youtuber.slug} className="p-4 grid grid-cols-3 items-center">
+                <div>{youtuber.name}</div>
+                <div className="text-muted-foreground">{youtuber.slug}</div>
+                <div className="text-right">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDeleteYoutuber(youtuber.slug, youtuber.name)}
+                    disabled={deleteMutation.isPending}
                   >
-                    Visit Channel
-                  </a>
-                )}
-              </CardContent>
-              <CardFooter className="border-t pt-4 flex justify-between">
-                <span className="text-xs text-muted-foreground">Slug: {youtuber.slug}</span>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="ml-auto"
-                  onClick={() => handleDeleteYoutuber(youtuber)}
-                  disabled={deleteMutation.isPending}
-                >
-                  <Trash className="h-4 w-4" />
-                </Button>
-              </CardFooter>
-            </Card>
-          )) : (
-            <div className="col-span-full p-6 text-center border rounded bg-muted/20">
-              <p>No youtubers added yet. Click "Add Youtuber" to create your first one.</p>
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-6 text-center text-muted-foreground">
+              No youtubers found. Create your first youtuber above.
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

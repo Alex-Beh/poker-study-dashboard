@@ -11,12 +11,12 @@ const CategoryManager: React.FC = () => {
   const queryClient = useQueryClient();
   const [newCategoryName, setNewCategoryName] = useState('');
 
-  const { data: categoryResponse, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['categories'],
     queryFn: categoriesApi.getAll
   });
 
-  const categories = categoryResponse ?? [];
+  const categories = data || [];
 
   // Delete category mutation
   const deleteMutation = useMutation({

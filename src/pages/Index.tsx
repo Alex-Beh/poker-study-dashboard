@@ -8,144 +8,98 @@ import { ProgressProvider } from '@/contexts/ProgressContext';
 import { UserCategoriesProvider } from '@/contexts/UserCategoriesContext';
 import { CreatorProvider, useCreator } from '@/contexts/CreatorContext';
 import { videosApi } from '@/services/api';
-import { Video } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useUserCategories } from '@/contexts/UserCategoriesContext';
 
 const IndexContent = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const { selectedCreator } = useCreator();
-  const { userCategories } = useUserCategories();
   
   // Fetch all videos for the selected creator
   const { data: allVideos, isLoading: isLoadingAllVideos } = useQuery({
-    queryKey: ['videos', selectedCreator?.id],
-    queryFn: () => videosApi.getAll()
+    queryKey: ['videos'],
+    queryFn: () => videosApi.getAll(),
+    staleTime: 60000 // Keep data fresh for 1 minute
+  });
+
+  // Fetch specific creator videos when a creator is selected
+  const { data: creatorVideos, isLoading: isLoadingCreatorVideos } = useQuery({
+    queryKey: ['videos', 'creator', selectedCreator?.id],
+    queryFn: () => selectedCreator ? videosApi.getByCreator(selectedCreator.id, 1) : Promise.resolve({ videos: [] }),
+    enabled: !!selectedCreator,
+    staleTime: 60000 // Keep data fresh for 1 minute
   });
   
-  // Fetch paginated videos for the selected category or creator
+  // Videos to display based on creator selection
+  const videosToDisplay = selectedCreator && creatorVideos?.videos ? creatorVideos.videos : (allVideos || []);
+
+  // Fetch paginated videos for the selected category
   const { 
     data: categoryData, 
     isLoading: isLoadingCategory,
     error 
   } = useQuery({
-    queryKey: ['videos', selectedCategory, currentPage, selectedCreator?.id],
-    queryFn: async () => {
-      // Check if it's a user-defined category
-      const userCategory = userCategories.find(c => 
-        c.name === selectedCategory && (!selectedCreator || c.creatorId === selectedCreator.id.toString())
-      );
-      
-      if (userCategory) {
-        // For user categories, filter all videos to get those in the category
-        if (allVideos) {
-          const filteredVideos = allVideos.filter(video => 
-            userCategory.videoIds.includes(typeof video.video_id === 'string' ? parseInt(video.video_id) : video.video_id)
-          );
-          
-          // Manual pagination for user categories
-          const total = filteredVideos.length;
-          const limit = 12;
-          const totalPages = Math.ceil(total / limit);
-          const start = (currentPage - 1) * limit;
-          const end = start + limit;
-          const paginatedVideos = filteredVideos.slice(start, end);
-          
-          return {
-            videos: paginatedVideos,
-            page: currentPage,
-            limit,
-            total,
-            total_pages: totalPages
-          };
-        }
-        return {
-          videos: [],
+    queryKey: ['videos', 'category', selectedCategory, currentPage],
+    queryFn: () => {
+      if (!selectedCategory) {
+        return Promise.resolve({
+          videos: videosToDisplay,
           page: 1,
-          limit: 12,
-          total: 0,
-          total_pages: 1
-        };
+          limit: 20,
+          total: videosToDisplay.length,
+          total_pages: Math.ceil(videosToDisplay.length / 20)
+        });
       }
       
-      // For system categories or when no category is selected
-      if (selectedCreator && !selectedCategory) {
-        return videosApi.getByCreator(selectedCreator.id, currentPage);
-      } else if (selectedCategory) {
-        return videosApi.getByCategory(selectedCategory, currentPage);
-      } else {
-        return {
-          videos: [],
-          page: 1,
-          limit: 12,
-          total: 0,
-          total_pages: 1
-        };
-      }
+      return videosApi.getByCategory(selectedCategory, currentPage);
     },
     enabled: !!selectedCategory || !!selectedCreator,
+    staleTime: 60000 // Keep data fresh for 1 minute
   });
   
   // Extract videos and pagination info from the response
-  const categoryVideos = categoryData?.videos || [];
+  const categoryVideos = categoryData?.videos || videosToDisplay;
   const totalPages = categoryData?.total_pages || 1;
   
   // Build category map from fetched videos
   const categoryMap = React.useMemo(() => {
-    if (!allVideos) return {};
+    const videos = selectedCreator && creatorVideos?.videos ? creatorVideos.videos : (allVideos || []);
+    if (!videos.length) return {};
     
     const map: Record<string, number[]> = {};
-    allVideos.forEach(video => {
+    videos.forEach(video => {
       if (video.categories) {
-        video.categories.forEach(category => {
-          if (typeof category === 'string') {
-            if (!map[category]) {
-              map[category] = [];
+        const categoryList = Array.isArray(video.categories) ? video.categories : [video.categories];
+        
+        categoryList.forEach(category => {
+          const categoryName = typeof category === 'string' ? category : 
+                            (category && typeof category === 'object' && 'name' in category ? category.name : null);
+          
+          if (categoryName) {
+            if (!map[categoryName]) {
+              map[categoryName] = [];
             }
             const videoId = typeof video.video_id === 'string' ? parseInt(video.video_id) : video.video_id;
-            map[category].push(videoId);
-          } else if (category && typeof category === 'object' && 'name' in category) {
-            if (!map[category.name]) {
-              map[category.name] = [];
-            }
-            const videoId = typeof video.video_id === 'string' ? parseInt(video.video_id) : video.video_id;
-            map[category.name].push(videoId);
+            map[categoryName].push(videoId);
           }
         });
       }
     });
     
-    // Add user categories to the map
-    userCategories.forEach(category => {
-      if (selectedCreator && category.creatorId === selectedCreator.id.toString()) {
-        map[category.name] = category.videoIds;
-      }
-    });
-    
     return map;
-  }, [allVideos, userCategories, selectedCreator]);
+  }, [allVideos, creatorVideos, selectedCreator]);
   
   // Set initial category when data is loaded
   useEffect(() => {
-    if (allVideos && allVideos.length > 0 && !selectedCategory) {
-      // Get first category from the first video
-      const firstVideo = allVideos[0];
-      if (firstVideo.categories && firstVideo.categories.length > 0) {
-        const firstCategory = firstVideo.categories[0];
-        if (typeof firstCategory === 'string') {
-          setSelectedCategory(firstCategory);
-        } else if (firstCategory && typeof firstCategory === 'object' && 'name' in firstCategory) {
-          setSelectedCategory(firstCategory.name);
-        }
-      }
-    }
-  }, [allVideos, selectedCategory]);
+    // When creator changes, reset the selected category
+    setSelectedCategory("");
+    setCurrentPage(1);
+  }, [selectedCreator]);
 
-  // Reset to page 1 when changing categories or creators
+  // Reset to page 1 when changing categories
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategory, selectedCreator]);
+  }, [selectedCategory]);
   
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -153,7 +107,10 @@ const IndexContent = () => {
     window.scrollTo(0, 0);
   };
 
-  const isLoading = isLoadingAllVideos || (isLoadingCategory && (!!selectedCategory || !!selectedCreator));
+  // Determine if we're still loading data
+  const isLoading = isLoadingAllVideos || 
+                    (isLoadingCreatorVideos && !!selectedCreator) || 
+                    (isLoadingCategory && !!selectedCategory);
 
   if (isLoading) {
     return (
@@ -192,12 +149,12 @@ const IndexContent = () => {
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         <CategorySidebar
           categoryMap={categoryMap}
-          videos={allVideos || []}
+          videos={videosToDisplay}
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
         />
         <VideoGrid 
-          videos={categoryVideos}
+          videos={selectedCategory ? categoryVideos : videosToDisplay}
           categoryName={selectedCategory || (selectedCreator ? `All ${selectedCreator.name} Videos` : 'All Videos')}
           currentPage={currentPage}
           totalPages={totalPages}

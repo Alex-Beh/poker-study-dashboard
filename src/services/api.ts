@@ -9,11 +9,23 @@ const api = axios.create({
   baseURL: API_BASE_URL
 });
 
+// Helper function to normalize API responses
+const normalizeResponse = (response: any) => {
+  // Check if the response follows our standard format
+  if (response.data && typeof response.data === 'object') {
+    if ('data' in response.data) {
+      return response.data.data;
+    }
+  }
+  // Fallback to the direct response data
+  return response.data;
+};
+
 // ---- Videos API ----
 export const videosApi = {
   getAll: async (): Promise<Video[]> => {
-    const response = await api.get('/videos');
-    return response.data.data || [];
+    const response = await api.get('/videos/');
+    return normalizeResponse(response) || [];
   },
 
   getByCategory: async (
@@ -21,19 +33,18 @@ export const videosApi = {
     page: number = 1,
     limit: number = 12
   ): Promise<CategoryVideosResponse> => {
-    const categorySlug = category.toLowerCase().replace(/\W+/g, '-');
-    const response = await api.get(`/videos/${categorySlug}?page=${page}&limit=${limit}`);
-    return response.data.data;
+    const response = await api.get(`/videos/category/${category}?page=${page}&limit=${limit}`);
+    return normalizeResponse(response) || { videos: [], page: 1, limit, total: 0, total_pages: 1 };
   },
 
   getById: async (videoId: number | string): Promise<Video> => {
     const response = await api.get(`/videos/${videoId}`);
-    return response.data.data;
+    return normalizeResponse(response);
   },
 
   search: async (query: string): Promise<Video[]> => {
     const response = await api.get(`/videos/search?q=${encodeURIComponent(query)}`);
-    return response.data.data || [];
+    return normalizeResponse(response) || [];
   },
 
   getByCreator: async (
@@ -42,12 +53,12 @@ export const videosApi = {
     limit: number = 20
   ): Promise<CategoryVideosResponse> => {
     const response = await api.get(`/videos/by-creator/${youtuberId}?page=${page}&limit=${limit}`);
-    return response.data.data || { videos: [], page: 1, limit, total: 0, total_pages: 1 };
+    return normalizeResponse(response) || { videos: [], page: 1, limit, total: 0, total_pages: 1 };
   },
 
   markAsWatched: async (videoId: number | string): Promise<{ watched: boolean }> => {
     const response = await api.patch(`/videos/${videoId}/watch`);
-    return response.data.data;
+    return normalizeResponse(response) || { watched: true };
   }
 };
 
@@ -55,16 +66,17 @@ export const videosApi = {
 export const categoriesApi = {
   getAll: async (): Promise<CategoryItem[]> => {
     const response = await api.get('/categories');
-    return response.data.data || [];
+    return normalizeResponse(response) || [];
   },
 
   delete: async (slug: string): Promise<void> => {
-    await api.delete(`/categories/${slug}`);
+    const response = await api.delete(`/categories/${slug}`);
+    return normalizeResponse(response);
   },
 
   create: async (data: { name: string, slug?: string }): Promise<CategoryItem> => {
     const response = await api.post('/categories', data);
-    return response.data.data;
+    return normalizeResponse(response);
   }
 };
 
@@ -72,16 +84,17 @@ export const categoriesApi = {
 export const tagsApi = {
   getAll: async (): Promise<any[]> => {
     const response = await api.get('/tags');
-    return response.data.data || [];
+    return normalizeResponse(response) || [];
   },
 
   delete: async (slug: string): Promise<void> => {
-    await api.delete(`/tags/${slug}`);
+    const response = await api.delete(`/tags/${slug}`);
+    return normalizeResponse(response);
   },
 
   create: async (data: { name: string, slug?: string }): Promise<any> => {
     const response = await api.post('/tags', data);
-    return response.data.data;
+    return normalizeResponse(response);
   }
 };
 
@@ -89,20 +102,21 @@ export const tagsApi = {
 export const youtubersApi = {
   getAll: async (): Promise<Creator[]> => {
     const response = await api.get('/youtubers');
-    return response.data.data || [];
+    return normalizeResponse(response) || [];
   },
 
   create: async (name: string, slug: string, channelUrl?: string): Promise<Creator> => {
     const response = await api.post('/youtubers', { name, slug, channel_url: channelUrl });
-    return response.data.data;
+    return normalizeResponse(response);
   },
 
   delete: async (slug: string): Promise<void> => {
-    await api.delete(`/youtubers/${slug}`);
+    const response = await api.delete(`/youtubers/${slug}`);
+    return normalizeResponse(response);
   }
 };
 
-// Legacy functions for backward compatibility
+// Response types
 export interface CategoryVideosResponse {
   videos: Video[];
   page: number;
@@ -111,6 +125,7 @@ export interface CategoryVideosResponse {
   total_pages: number;
 }
 
+// Legacy functions for backward compatibility
 export const fetchAllVideos = videosApi.getAll;
 export const fetchCategoryVideos = videosApi.getByCategory;
 export const fetchCategories = categoriesApi.getAll;

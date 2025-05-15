@@ -49,14 +49,15 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
       } else {
         // When marking as watched, also call the API
         try {
-          markVideoAsWatched(videoId).catch(error => {
-            console.error('Error marking video as watched:', error);
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Failed to update watched status on the server."
+          markVideoAsWatched(videoId)
+            .catch(error => {
+              console.error('Error marking video as watched:', error);
+              toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Failed to update watched status on the server."
+              });
             });
-          });
           newWatched.add(videoId);
         } catch (error) {
           console.error('Error marking video as watched:', error);
