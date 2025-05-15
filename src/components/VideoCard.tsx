@@ -38,7 +38,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   const queryClient = useQueryClient();
   
   // Ensure we have a valid ID to work with (using id as the primary key)
-  const videoId = typeof video.id === 'string' ? parseInt(video.id, 10) : Number(video.id);
+  const videoId = typeof video.id === 'number' ? video.id : parseInt(video.id as string, 10);
   
   // Check if the video is watched
   const isWatched = video.watched || watchedVideos.has(videoId);
@@ -71,7 +71,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
 
   // Mutation for marking a video as watched
   const watchMutation = useMutation({
-    mutationFn: (id: number | string) => videosApi.markAsWatched(id),
+    mutationFn: (id: number) => videosApi.markAsWatched(id),
     onSuccess: () => {
       // Update local state first for immediate UI feedback
       toggleWatched(videoId);
@@ -144,7 +144,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   }
   
   return (
-    <Card className={`overflow-hidden transition-all duration-200 ${isWatched ? 'opacity-60' : ''}`}>
+    <Card className="overflow-hidden transition-all duration-200">
       <div className="relative">
         <div 
           className="aspect-video bg-cover bg-center cursor-pointer" 

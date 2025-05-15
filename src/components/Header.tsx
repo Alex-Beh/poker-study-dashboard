@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -23,21 +24,30 @@ const Header: React.FC<HeaderProps> = ({ videos }) => {
   // Filter videos by selected creator if applicable
   const filteredVideos = useMemo(() => {
     if (!selectedCreator) return videos;
-    return videos.filter(v => v.youtuber_id === selectedCreator.id || v.creator_id === selectedCreator.id);
+    return videos.filter(v => {
+      const creatorId = v.youtuber_id || v.creator_id;
+      return creatorId === selectedCreator.id || creatorId === String(selectedCreator.id);
+    });
   }, [videos, selectedCreator]);
   
   // Use id as primary key for consistent comparison
-  const totalVideos = useMemo(() => new Set(filteredVideos.map(v => {
-    return typeof v.id === 'string' ? parseInt(v.id, 10) : Number(v.id);
-  })).size, [filteredVideos]);
+  const totalVideos = useMemo(() => {
+    return new Set(filteredVideos.map(v => {
+      const videoId = typeof v.id === 'number' ? v.id : parseInt(v.id as string, 10);
+      return !isNaN(videoId) ? videoId : null;
+    }).filter(Boolean)).size;
+  }, [filteredVideos]);
   
   const watchedCount = useMemo(() => {
-    return [...watchedVideos].filter(id => 
+    const serverWatchedCount = filteredVideos.filter(v => v.watched).length;
+    const localWatchedCount = [...watchedVideos].filter(id => 
       filteredVideos.some(v => {
-        const videoId = typeof v.id === 'string' ? parseInt(v.id, 10) : Number(v.id);
-        return videoId === id;
+        const videoId = typeof v.id === 'number' ? v.id : parseInt(v.id as string, 10);
+        return !isNaN(videoId) && videoId === id && !v.watched;
       })
     ).length;
+    
+    return serverWatchedCount + localWatchedCount;
   }, [watchedVideos, filteredVideos]);
   
   const overallProgress = useMemo(() => {

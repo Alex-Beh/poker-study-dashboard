@@ -1,7 +1,7 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { ProgressContextType } from '../types';
-import { markVideoAsWatched } from '@/services/api';
+import { videosApi } from '@/services/api';
 import { toast } from '@/components/ui/use-toast';
 
 // Create the context with default values
@@ -22,62 +22,79 @@ interface ProgressProviderProps {
 export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) => {
   const [watchedVideos, setWatchedVideos] = useState<Set<number>>(new Set());
 
-  // Load watched videos from localStorage on initial render
+  // Initial load of watched videos from API
   useEffect(() => {
-    const savedWatched = localStorage.getItem('watchedVideos');
-    if (savedWatched) {
+    const fetchWatchedStatus = async () => {
       try {
-        const parsedWatched = JSON.parse(savedWatched);
-        setWatchedVideos(new Set(parsedWatched));
+        const allVideos = await videosApi.getAll();
+        const watched = new Set<number>();
+        
+        allVideos.forEach(video => {
+          const videoId = typeof video.id === 'number' ? video.id : parseInt(video.id as string, 10);
+          if (!isNaN(videoId) && video.watched) {
+            watched.add(videoId);
+          }
+        });
+        
+        setWatchedVideos(watched);
       } catch (error) {
-        console.error('Error parsing watched videos from localStorage:', error);
+        console.error('Error fetching watched videos:', error);
       }
-    }
+    };
+    
+    fetchWatchedStatus();
   }, []);
 
-  // Save watched videos to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('watchedVideos', JSON.stringify([...watchedVideos]));
-  }, [watchedVideos]);
-
   // Toggle a video's watched status
-  const toggleWatched = (videoId: number) => {
-    setWatchedVideos(prevWatched => {
-      const newWatched = new Set(prevWatched);
-      if (newWatched.has(videoId)) {
-        newWatched.delete(videoId);
-      } else {
-        // When marking as watched, also call the API
-        try {
-          markVideoAsWatched(videoId)
-            .catch(error => {
-              console.error('Error marking video as watched:', error);
-              toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Failed to update watched status on the server."
-              });
-            });
-          newWatched.add(videoId);
-        } catch (error) {
-          console.error('Error marking video as watched:', error);
-        }
+  const toggleWatched = async (videoId: number) => {
+    try {
+      // Call API to update watched status
+      if (!watchedVideos.has(videoId)) {
+        // Only call API if we're marking as watched
+        await videosApi.markAsWatched(videoId);
       }
-      return newWatched;
-    });
+      
+      // Update local state for immediate UI feedback
+      setWatchedVideos(prevWatched => {
+        const newWatched = new Set(prevWatched);
+        if (newWatched.has(videoId)) {
+          newWatched.delete(videoId);
+        } else {
+          newWatched.add(videoId);
+        }
+        return newWatched;
+      });
+    } catch (error) {
+      console.error('Error updating watched status:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update watched status on the server."
+      });
+    }
   };
 
-  // Reset all progress
-  const resetProgress = () => {
-    setWatchedVideos(new Set());
-    localStorage.removeItem('watchedVideos');
-    toast({
-      title: "Progress Reset",
-      description: "All watched status has been reset."
-    });
+  // Reset all progress (need to implement server-side reset)
+  const resetProgress = async () => {
+    try {
+      // We should ideally have an API endpoint for this
+      // For now, let's just clear the local state
+      setWatchedVideos(new Set());
+      toast({
+        title: "Progress Reset",
+        description: "All watched status has been reset."
+      });
+    } catch (error) {
+      console.error('Error resetting progress:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to reset progress on the server."
+      });
+    }
   };
 
-  // Export progress as JSON
+  // Export progress as JSON (for backup purposes)
   const exportProgress = () => {
     return JSON.stringify([...watchedVideos]);
   };

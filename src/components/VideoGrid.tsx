@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Video } from '@/types';
 import VideoCard from './VideoCard';
@@ -146,7 +147,7 @@ const VideoGrid: React.FC<VideoGridProps> = ({
         {filteredVideos.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pb-4">
             {filteredVideos.map((video) => (
-              <VideoCard key={video.video_id} video={video} />
+              <VideoCard key={video.id || video.video_id} video={video} />
             ))}
           </div>
         ) : (

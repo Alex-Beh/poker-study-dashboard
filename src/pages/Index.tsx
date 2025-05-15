@@ -52,7 +52,7 @@ const IndexContent = () => {
             if (!map[categoryName]) {
               map[categoryName] = [];
             }
-            const videoId = typeof video.id === 'string' ? parseInt(video.id, 10) : Number(video.id);
+            const videoId = typeof video.id === 'number' ? video.id : parseInt(video.id as string, 10);
             if (!isNaN(videoId) && !map[categoryName].includes(videoId)) {
               map[categoryName].push(videoId);
             }
@@ -72,8 +72,8 @@ const IndexContent = () => {
     
     const categoryIds = categoryMap[selectedCategory] || [];
     return currentCreatorVideos.filter(video => {
-      const videoId = typeof video.id === 'string' ? parseInt(video.id, 10) : Number(video.id);
-      return categoryIds.includes(videoId);
+      const videoId = typeof video.id === 'number' ? video.id : parseInt(video.id as string, 10);
+      return !isNaN(videoId) && categoryIds.includes(videoId);
     });
   }, [currentCreatorVideos, selectedCategory, categoryMap]);
   

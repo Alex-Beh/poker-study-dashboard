@@ -58,7 +58,8 @@ export const videosApi = {
 
   getById: async (videoId: number | string): Promise<Video> => {
     try {
-      const response = await api.get(`/videos/${videoId}`);
+      const id = typeof videoId === 'string' ? parseInt(videoId, 10) : videoId;
+      const response = await api.get(`/videos/${id}`);
       return normalizeResponse(response);
     } catch (error) {
       return handleApiError(error);
@@ -80,7 +81,8 @@ export const videosApi = {
     limit: number = 100 // Increased limit to get more videos at once
   ): Promise<CategoryVideosResponse> => {
     try {
-      const response = await api.get(`/videos/by-creator/${youtuberId}?page=${page}&limit=${limit}`);
+      const id = typeof youtuberId === 'string' ? parseInt(youtuberId, 10) : youtuberId;
+      const response = await api.get(`/videos/by-creator/${id}?page=${page}&limit=${limit}`);
       return normalizeResponse(response) || { videos: [], page: 1, limit, total: 0, total_pages: 1 };
     } catch (error) {
       return handleApiError(error);
@@ -89,8 +91,13 @@ export const videosApi = {
 
   markAsWatched: async (videoId: number | string): Promise<{ watched: boolean }> => {
     try {
-      // Ensure videoId is passed as a number if it's a numeric string
-      const id = typeof videoId === 'string' && !isNaN(parseInt(videoId)) ? parseInt(videoId) : videoId;
+      // Ensure videoId is properly parsed as a number
+      const id = typeof videoId === 'string' ? parseInt(videoId, 10) : videoId;
+      
+      if (isNaN(id as number)) {
+        throw new Error('Invalid video ID');
+      }
+      
       console.log("Marking video as watched:", id);
       
       const response = await api.patch(`/videos/${id}/watch`);
