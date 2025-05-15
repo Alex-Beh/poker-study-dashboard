@@ -21,11 +21,26 @@ const normalizeResponse = (response: any) => {
   return response.data;
 };
 
+// Handle API errors consistently
+const handleApiError = (error: any): never => {
+  console.error('API Error:', error);
+  const errorMsg = 
+    error?.response?.data?.message || 
+    error?.response?.data?.errors?.general || 
+    error?.message || 
+    'Unknown API error';
+  throw new Error(errorMsg);
+};
+
 // ---- Videos API ----
 export const videosApi = {
   getAll: async (): Promise<Video[]> => {
-    const response = await api.get('/videos/');
-    return normalizeResponse(response) || [];
+    try {
+      const response = await api.get('/videos/');
+      return normalizeResponse(response) || [];
+    } catch (error) {
+      return handleApiError(error);
+    }
   },
 
   getByCategory: async (
@@ -33,86 +48,146 @@ export const videosApi = {
     page: number = 1,
     limit: number = 12
   ): Promise<CategoryVideosResponse> => {
-    const response = await api.get(`/videos/category/${category}?page=${page}&limit=${limit}`);
-    return normalizeResponse(response) || { videos: [], page: 1, limit, total: 0, total_pages: 1 };
+    try {
+      const response = await api.get(`/videos/category/${category}?page=${page}&limit=${limit}`);
+      return normalizeResponse(response) || { videos: [], page: 1, limit, total: 0, total_pages: 1 };
+    } catch (error) {
+      return handleApiError(error);
+    }
   },
 
   getById: async (videoId: number | string): Promise<Video> => {
-    const response = await api.get(`/videos/${videoId}`);
-    return normalizeResponse(response);
+    try {
+      const response = await api.get(`/videos/${videoId}`);
+      return normalizeResponse(response);
+    } catch (error) {
+      return handleApiError(error);
+    }
   },
 
   search: async (query: string): Promise<Video[]> => {
-    const response = await api.get(`/videos/search?q=${encodeURIComponent(query)}`);
-    return normalizeResponse(response) || [];
+    try {
+      const response = await api.get(`/videos/search?q=${encodeURIComponent(query)}`);
+      return normalizeResponse(response) || [];
+    } catch (error) {
+      return handleApiError(error);
+    }
   },
 
   getByCreator: async (
     youtuberId: number | string,
     page: number = 1,
-    limit: number = 20
+    limit: number = 100 // Increased limit to get more videos at once
   ): Promise<CategoryVideosResponse> => {
-    const response = await api.get(`/videos/by-creator/${youtuberId}?page=${page}&limit=${limit}`);
-    return normalizeResponse(response) || { videos: [], page: 1, limit, total: 0, total_pages: 1 };
+    try {
+      const response = await api.get(`/videos/by-creator/${youtuberId}?page=${page}&limit=${limit}`);
+      return normalizeResponse(response) || { videos: [], page: 1, limit, total: 0, total_pages: 1 };
+    } catch (error) {
+      return handleApiError(error);
+    }
   },
 
   markAsWatched: async (videoId: number | string): Promise<{ watched: boolean }> => {
-    const response = await api.patch(`/videos/${videoId}/watch`);
-    return normalizeResponse(response) || { watched: true };
+    try {
+      // Ensure videoId is passed as a number if it's a numeric string
+      const id = typeof videoId === 'string' && !isNaN(parseInt(videoId)) ? parseInt(videoId) : videoId;
+      console.log("Marking video as watched:", id);
+      
+      const response = await api.patch(`/videos/${id}/watch`);
+      return normalizeResponse(response) || { watched: true };
+    } catch (error) {
+      return handleApiError(error);
+    }
   }
 };
 
 // ---- Categories API ----
 export const categoriesApi = {
   getAll: async (): Promise<CategoryItem[]> => {
-    const response = await api.get('/categories');
-    return normalizeResponse(response) || [];
+    try {
+      const response = await api.get('/categories');
+      return normalizeResponse(response) || [];
+    } catch (error) {
+      return handleApiError(error);
+    }
   },
 
   delete: async (slug: string): Promise<void> => {
-    const response = await api.delete(`/categories/${slug}`);
-    return normalizeResponse(response);
+    try {
+      const response = await api.delete(`/categories/${slug}`);
+      return normalizeResponse(response);
+    } catch (error) {
+      return handleApiError(error);
+    }
   },
 
   create: async (data: { name: string, slug?: string }): Promise<CategoryItem> => {
-    const response = await api.post('/categories', data);
-    return normalizeResponse(response);
+    try {
+      const response = await api.post('/categories', data);
+      return normalizeResponse(response);
+    } catch (error) {
+      return handleApiError(error);
+    }
   }
 };
 
 // ---- Tags API ----
 export const tagsApi = {
   getAll: async (): Promise<any[]> => {
-    const response = await api.get('/tags');
-    return normalizeResponse(response) || [];
+    try {
+      const response = await api.get('/tags');
+      return normalizeResponse(response) || [];
+    } catch (error) {
+      return handleApiError(error);
+    }
   },
 
   delete: async (slug: string): Promise<void> => {
-    const response = await api.delete(`/tags/${slug}`);
-    return normalizeResponse(response);
+    try {
+      const response = await api.delete(`/tags/${slug}`);
+      return normalizeResponse(response);
+    } catch (error) {
+      return handleApiError(error);
+    }
   },
 
   create: async (data: { name: string, slug?: string }): Promise<any> => {
-    const response = await api.post('/tags', data);
-    return normalizeResponse(response);
+    try {
+      const response = await api.post('/tags', data);
+      return normalizeResponse(response);
+    } catch (error) {
+      return handleApiError(error);
+    }
   }
 };
 
 // ---- Youtubers API ----
 export const youtubersApi = {
   getAll: async (): Promise<Creator[]> => {
-    const response = await api.get('/youtubers');
-    return normalizeResponse(response) || [];
+    try {
+      const response = await api.get('/youtubers');
+      return normalizeResponse(response) || [];
+    } catch (error) {
+      return handleApiError(error);
+    }
   },
 
   create: async (name: string, slug: string, channelUrl?: string): Promise<Creator> => {
-    const response = await api.post('/youtubers', { name, slug, channel_url: channelUrl });
-    return normalizeResponse(response);
+    try {
+      const response = await api.post('/youtubers', { name, slug, channel_url: channelUrl });
+      return normalizeResponse(response);
+    } catch (error) {
+      return handleApiError(error);
+    }
   },
 
   delete: async (slug: string): Promise<void> => {
-    const response = await api.delete(`/youtubers/${slug}`);
-    return normalizeResponse(response);
+    try {
+      const response = await api.delete(`/youtubers/${slug}`);
+      return normalizeResponse(response);
+    } catch (error) {
+      return handleApiError(error);
+    }
   }
 };
 

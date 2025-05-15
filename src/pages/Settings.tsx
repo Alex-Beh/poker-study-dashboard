@@ -1,71 +1,85 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
-import { categoriesApi, tagsApi } from '@/services/api';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import YoutuberManager from '@/components/YoutuberManager';
+import { categoriesApi, tagsApi, youtubersApi } from '@/services/api';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CategoryManager from '@/components/CategoryManager';
+import YoutuberManager from '@/components/YoutuberManager';
 import TagManager from '@/components/TagManager';
-import { Separator } from '@/components/ui/separator';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
+import { ChevronLeft } from 'lucide-react'; 
 
 const Settings = () => {
-  const navigate = useNavigate();
-  
-  // Fetch categories
-  const { data: categories } = useQuery({
+  const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useQuery({
     queryKey: ['categories'],
-    queryFn: categoriesApi.getAll
+    queryFn: categoriesApi.getAll,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
-  
-  // Fetch tags
-  const { data: tags, isLoading: isLoadingTags, error: tagsError } = useQuery({
+
+  const { data: tags, isLoading: tagsLoading, error: tagsError } = useQuery({
     queryKey: ['tags'],
-    queryFn: tagsApi.getAll
+    queryFn: tagsApi.getAll,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
-  
+
+  const { data: youtubers, isLoading: youtubersLoading, error: youtubersError } = useQuery({
+    queryKey: ['youtubers'],
+    queryFn: youtubersApi.getAll,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  if (categoriesError || tagsError || youtubersError) {
+    const errorMessage = 
+      (categoriesError as Error)?.message || 
+      (tagsError as Error)?.message || 
+      (youtubersError as Error)?.message;
+    
+    toast({
+      variant: "destructive",
+      title: "Error loading data",
+      description: errorMessage || "Failed to load settings data"
+    });
+  }
+
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <Button variant="outline" onClick={() => navigate('/')}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Home
-        </Button>
+    <div className="container mx-auto py-8 px-4">
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/">
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Back to Videos
+            </Link>
+          </Button>
+          <h1 className="text-3xl font-bold">Settings</h1>
+        </div>
       </div>
-      
-      <Tabs defaultValue="youtubers">
-        <TabsList className="mb-8">
+
+      <Tabs defaultValue="youtubers" className="w-full">
+        <TabsList className="mb-4">
           <TabsTrigger value="youtubers">Youtubers</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="youtubers">
+
+        <TabsContent value="youtubers" className="mt-4">
           <YoutuberManager />
         </TabsContent>
-        
-        <TabsContent value="categories">
+
+        <TabsContent value="categories" className="mt-4">
           <CategoryManager />
         </TabsContent>
-        
-        <TabsContent value="tags">
+
+        <TabsContent value="tags" className="mt-4">
           <TagManager 
             tags={tags || []} 
-            isLoading={isLoadingTags} 
-            error={tagsError as Error | null} 
+            isLoading={tagsLoading} 
+            error={tagsError as Error} 
           />
         </TabsContent>
       </Tabs>
-      
-      <Separator className="my-8" />
-      
-      <div className="bg-muted/20 p-6 rounded-lg">
-        <h2 className="text-xl font-bold mb-2">About</h2>
-        <p>Poker Training Tracker helps you organize and track your poker training videos across multiple creators.</p>
-      </div>
     </div>
   );
 };

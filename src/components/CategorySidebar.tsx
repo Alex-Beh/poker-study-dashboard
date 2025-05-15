@@ -29,21 +29,27 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
   const { selectedCreator } = useCreator();
   
   const categories = useMemo(() => {
-    const videosById = new Map(videos.map(video => [video.video_id, video]));
+    const videosById = new Map(videos.map(video => {
+      const videoId = typeof video.video_id === 'string' ? parseInt(video.video_id, 10) : video.video_id;
+      return [videoId, video];
+    }));
     
     return Object.entries(categoryMap).map(([name, videoIds]) => {
-      const categoryVideos = videoIds
+      // Ensure all videoIds are numbers
+      const normalizedVideoIds = videoIds.map(id => typeof id === 'string' ? parseInt(id, 10) : id);
+      
+      const categoryVideos = normalizedVideoIds
         .map(id => videosById.get(id))
         .filter((v): v is Video => !!v);
       
-      const watchedCount = videoIds.filter(id => watchedVideos.has(id)).length;
+      const watchedCount = normalizedVideoIds.filter(id => watchedVideos.has(id)).length;
       
       return {
         name,
         videos: categoryVideos,
         watchedCount,
-        totalCount: videoIds.length,
-        progress: videoIds.length > 0 ? (watchedCount / videoIds.length) * 100 : 0,
+        totalCount: normalizedVideoIds.length,
+        progress: normalizedVideoIds.length > 0 ? (watchedCount / normalizedVideoIds.length) * 100 : 0,
         isUserDefined: false
       };
     });
@@ -54,14 +60,19 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
     if (!selectedCreator) return categories;
     
     const userCats = userCategories
-      .filter(cat => cat.creatorId === selectedCreator.id)
+      .filter(cat => cat.creatorId === selectedCreator.id.toString())
       .map(cat => {
         const videoIds = cat.videoIds;
         const watchedCount = videoIds.filter(id => watchedVideos.has(id)).length;
         return {
           name: cat.name,
           id: cat.id,
-          videos: videoIds.map(id => videos.find(v => v.video_id === id)).filter(Boolean) as Video[],
+          videos: videoIds
+            .map(id => videos.find(v => {
+              const videoId = typeof v.video_id === 'string' ? parseInt(v.video_id, 10) : v.video_id;
+              return videoId === id;
+            }))
+            .filter(Boolean) as Video[],
           watchedCount,
           totalCount: videoIds.length,
           progress: videoIds.length > 0 ? (watchedCount / videoIds.length) * 100 : 0,
@@ -99,8 +110,8 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
                 onClick={() => onSelectCategory(category.name)}
               >
                 <div className="flex justify-between items-center mb-1">
-                  <span className="font-medium">{category.name}</span>
-                  <span className="text-xs">
+                  <span className="font-medium truncate mr-2">{category.name}</span>
+                  <span className="text-xs whitespace-nowrap">
                     {category.watchedCount}/{category.totalCount}
                   </span>
                 </div>
@@ -128,7 +139,7 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
                     >
                       <div className="flex justify-between items-center mb-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">{category.name}</span>
+                          <span className="font-medium truncate">{category.name}</span>
                           <Badge variant="outline" className="text-xs">Custom</Badge>
                         </div>
                         <span className="text-xs">

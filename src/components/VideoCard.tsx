@@ -37,8 +37,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const queryClient = useQueryClient();
   
-  // Convert string IDs to numbers for comparison if needed
-  const videoId = typeof video.video_id === 'string' ? parseInt(video.video_id) : video.video_id;
+  // Ensure video_id is a number for consistent comparison
+  const videoId = typeof video.video_id === 'string' ? parseInt(video.video_id, 10) : video.video_id;
   
   // Check if the video is watched
   const isWatched = video.watched || watchedVideos.has(videoId);
@@ -95,11 +95,20 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   
   // Handle watched toggle
   const handleWatchedToggle = () => {
-    if (!isWatched) {
-      watchMutation.mutate(videoId);
+    console.log("Video ID: ", videoId);
+    if (!isNaN(videoId)) {
+      if (!isWatched) {
+        watchMutation.mutate(videoId);
+      } else {
+        // Just use the local toggle for now
+        toggleWatched(videoId);
+      }
     } else {
-      // Just use the local toggle for now
-      toggleWatched(videoId);
+      toast({
+        variant: "destructive",
+        title: "Cannot Mark Video",
+        description: "Invalid video ID"
+      });
     }
   };
 
@@ -236,7 +245,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
             </Button>
             <Button 
               onClick={() => {
-                if (!isWatched) {
+                if (!isWatched && !isNaN(videoId)) {
                   watchMutation.mutate(videoId);
                 }
                 setIsDialogOpen(false);
