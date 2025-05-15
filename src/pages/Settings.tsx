@@ -73,11 +73,7 @@ const Settings = () => {
         </TabsContent>
 
         <TabsContent value="tags" className="mt-4">
-          <TagManager 
-            tags={tags || []} 
-            isLoading={tagsLoading} 
-            error={tagsError as Error} 
-          />
+          <TagManager />
         </TabsContent>
       </Tabs>
     </div>

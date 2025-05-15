@@ -70,6 +70,11 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
   // Reset all progress
   const resetProgress = () => {
     setWatchedVideos(new Set());
+    localStorage.removeItem('watchedVideos');
+    toast({
+      title: "Progress Reset",
+      description: "All watched status has been reset."
+    });
   };
 
   // Export progress as JSON

@@ -34,7 +34,7 @@ const IndexContent = () => {
   // Videos to display based on creator selection
   const currentCreatorVideos = selectedCreator && creatorVideos?.videos ? creatorVideos.videos : (allVideos || []);
   
-  // Build category map from current creator videos
+  // Build category map from current creator videos using id as the key
   const categoryMap = React.useMemo(() => {
     const videos = currentCreatorVideos;
     if (!videos || videos.length === 0) return {};
@@ -52,7 +52,7 @@ const IndexContent = () => {
             if (!map[categoryName]) {
               map[categoryName] = [];
             }
-            const videoId = typeof video.video_id === 'string' ? parseInt(video.video_id, 10) : video.video_id;
+            const videoId = typeof video.id === 'string' ? parseInt(video.id, 10) : Number(video.id);
             if (!isNaN(videoId) && !map[categoryName].includes(videoId)) {
               map[categoryName].push(videoId);
             }
@@ -72,7 +72,7 @@ const IndexContent = () => {
     
     const categoryIds = categoryMap[selectedCategory] || [];
     return currentCreatorVideos.filter(video => {
-      const videoId = typeof video.video_id === 'string' ? parseInt(video.video_id, 10) : video.video_id;
+      const videoId = typeof video.id === 'string' ? parseInt(video.id, 10) : Number(video.id);
       return categoryIds.includes(videoId);
     });
   }, [currentCreatorVideos, selectedCategory, categoryMap]);

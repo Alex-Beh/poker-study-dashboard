@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,7 +8,6 @@ import { Video } from '@/types';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/use-toast';
-import { useToast } from '@/components/ui/use-toast';
 import CreatorDropdown from './CreatorDropdown';
 import { Settings } from 'lucide-react';
 
@@ -20,7 +18,6 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ videos }) => {
   const { watchedVideos, resetProgress, exportProgress, importProgress } = useProgress();
   const { selectedCreator } = useCreator();
-  const { toast } = useToast();
   const [importText, setImportText] = React.useState('');
   
   // Filter videos by selected creator if applicable
@@ -29,10 +26,17 @@ const Header: React.FC<HeaderProps> = ({ videos }) => {
     return videos.filter(v => v.youtuber_id === selectedCreator.id || v.creator_id === selectedCreator.id);
   }, [videos, selectedCreator]);
   
-  const totalVideos = useMemo(() => new Set(filteredVideos.map(v => v.video_id)).size, [filteredVideos]);
+  // Use id as primary key for consistent comparison
+  const totalVideos = useMemo(() => new Set(filteredVideos.map(v => {
+    return typeof v.id === 'string' ? parseInt(v.id, 10) : Number(v.id);
+  })).size, [filteredVideos]);
+  
   const watchedCount = useMemo(() => {
     return [...watchedVideos].filter(id => 
-      filteredVideos.some(v => v.video_id === id)
+      filteredVideos.some(v => {
+        const videoId = typeof v.id === 'string' ? parseInt(v.id, 10) : Number(v.id);
+        return videoId === id;
+      })
     ).length;
   }, [watchedVideos, filteredVideos]);
   
@@ -41,13 +45,7 @@ const Header: React.FC<HeaderProps> = ({ videos }) => {
   }, [totalVideos, watchedCount]);
 
   const handleReset = () => {
-    if (confirm('Are you sure you want to reset all progress?')) {
-      resetProgress();
-      toast({
-        title: "Progress Reset",
-        description: "All watched status has been reset.",
-      });
-    }
+    resetProgress();
   };
 
   const handleExport = () => {
