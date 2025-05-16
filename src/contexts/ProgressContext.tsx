@@ -22,46 +22,69 @@ interface ProgressProviderProps {
 export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) => {
   const [watchedVideos, setWatchedVideos] = useState<Set<number>>(new Set());
 
+  // Load watched videos initially from API
+  const fetchWatchedStatus = async () => {
+    try {
+      const allVideos = await videosApi.getAll();
+      const watched = new Set<number>();
+
+      allVideos.forEach(video => {
+        if (video.id && video.watched) {
+          watched.add(Number(video.id));
+        }
+      });
+
+      setWatchedVideos(watched);
+    } catch (error) {
+      console.error('Error fetching watched videos:', error);
+    }
+  };
+
   // Load watched videos initially
   useEffect(() => {
-    const fetchWatchedStatus = async () => {
-      try {
-        const allVideos = await videosApi.getAll();
-        const watched = new Set<number>();
-
-        allVideos.forEach(video => {
-          const videoId = video.id ? Number(video.id) : null;
-          if (videoId && video.watched) {
-            watched.add(videoId);
-          }
-        });
-
-        setWatchedVideos(watched);
-      } catch (error) {
-        console.error('Error fetching watched videos:', error);
-      }
-    };
-
     fetchWatchedStatus();
   }, []);
 
-  // Toggle watched state
-  const toggleWatched = (videoId: number) => {
-    setWatchedVideos(prevWatched => {
-      const newWatched = new Set(prevWatched);
-      if (newWatched.has(videoId)) {
-        newWatched.delete(videoId);
+  // Toggle watched state (communicating with API)
+  const toggleWatched = async (videoId: number) => {
+    try {
+      const isCurrentlyWatched = watchedVideos.has(videoId);
+      
+      // Optimistic UI update
+      setWatchedVideos(prevWatched => {
+        const newWatched = new Set(prevWatched);
+        if (newWatched.has(videoId)) {
+          newWatched.delete(videoId);
+        } else {
+          newWatched.add(videoId);
+        }
+        return newWatched;
+      });
+      
+      // API call
+      if (isCurrentlyWatched) {
+        await videosApi.markAsUnwatched(videoId);
       } else {
-        newWatched.add(videoId);
+        await videosApi.markAsWatched(videoId);
       }
-      return newWatched;
-    });
+    } catch (error) {
+      console.error('Error toggling watched status:', error);
+      // Revert optimistic update on error
+      fetchWatchedStatus();
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update watched status"
+      });
+    }
   };
 
   // Reset all watched progress
   const resetProgress = async () => {
     try {
       const result = await videosApi.resetProgress();
+      
+      // Update state after API success
       setWatchedVideos(new Set());
       
       toast({
@@ -78,9 +101,10 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
     }
   };
 
+  // These are now dummy functions since we're not using localStorage anymore
   const exportProgress = () => JSON.stringify([...watchedVideos]);
-
   const importProgress = (json: string) => {
+    // This is kept to maintain API compatibility, but doesn't use localStorage
     try {
       const importedWatched = JSON.parse(json);
       if (Array.isArray(importedWatched)) {

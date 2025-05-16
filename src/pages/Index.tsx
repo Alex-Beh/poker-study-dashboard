@@ -9,7 +9,6 @@ import { UserCategoriesProvider } from '@/contexts/UserCategoriesContext';
 import { CreatorProvider, useCreator } from '@/contexts/CreatorContext';
 import { videosApi } from '@/services/api';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from '@/components/ui/use-toast';
 
 const IndexContent = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -65,7 +64,7 @@ const IndexContent = () => {
             }
             
             const videoId = video.id ? Number(video.id) : null;
-            if (videoId && !map[categoryName].includes(videoId)) {
+            if (videoId !== null && !map[categoryName].includes(videoId)) {
               map[categoryName].push(videoId);
             }
           }
@@ -85,7 +84,7 @@ const IndexContent = () => {
     const categoryIds = categoryMap[selectedCategory] || [];
     return sortedVideos.filter(video => {
       const videoId = video.id ? Number(video.id) : null;
-      return videoId && categoryIds.includes(videoId);
+      return videoId !== null && categoryIds.includes(videoId);
     });
   }, [sortedVideos, selectedCategory, categoryMap]);
   
@@ -99,8 +98,6 @@ const IndexContent = () => {
   // Reset to page 1 when changing categories
   useEffect(() => {
     setCurrentPage(1);
-    console.log("Selected category changed to:", selectedCategory);
-    console.log("Videos for category:", categoryVideos.length);
   }, [selectedCategory]);
   
   const handlePageChange = (page: number) => {

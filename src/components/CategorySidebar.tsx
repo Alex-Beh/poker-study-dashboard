@@ -29,24 +29,24 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
   const { selectedCreator } = useCreator();
   
   const categories = useMemo(() => {
-    const videosById = new Map(videos.map(video => {
-      const videoId = typeof video.video_id === 'string' ? parseInt(video.video_id, 10) : video.video_id;
-      return [videoId, video];
-    }));
+    // Create a lookup map for videos by their ID
+    const videosById = new Map(videos.map(video => [Number(video.id), video]));
     
     return Object.entries(categoryMap).map(([name, videoIds]) => {
       // Ensure all videoIds are numbers
-      const normalizedVideoIds = videoIds.map(id => typeof id === 'string' ? parseInt(id, 10) : id);
+      const normalizedVideoIds = videoIds
+        .filter(id => id !== null && id !== undefined)
+        .map(id => typeof id === 'string' ? parseInt(id, 10) : id);
       
       const categoryVideos = normalizedVideoIds
         .map(id => videosById.get(id))
-        .filter((v): v is Video => !!v);
+        .filter(v => v !== undefined);
       
       const watchedCount = normalizedVideoIds.filter(id => watchedVideos.has(id)).length;
       
       return {
         name,
-        videos: categoryVideos,
+        videos: categoryVideos as Video[],
         watchedCount,
         totalCount: normalizedVideoIds.length,
         progress: normalizedVideoIds.length > 0 ? (watchedCount / normalizedVideoIds.length) * 100 : 0,
@@ -68,10 +68,7 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
           name: cat.name,
           id: cat.id,
           videos: videoIds
-            .map(id => videos.find(v => {
-              const videoId = typeof v.video_id === 'string' ? parseInt(v.video_id, 10) : v.video_id;
-              return videoId === id;
-            }))
+            .map(id => videos.find(v => Number(v.id) === id))
             .filter(Boolean) as Video[],
           watchedCount,
           totalCount: videoIds.length,

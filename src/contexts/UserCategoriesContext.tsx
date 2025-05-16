@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode } from 'react';
 import { UserCategory } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -33,23 +33,6 @@ interface UserCategoriesProviderProps {
 
 export const UserCategoriesProvider: React.FC<UserCategoriesProviderProps> = ({ children }) => {
   const [userCategories, setUserCategories] = useState<UserCategory[]>([]);
-
-  // Load user categories from localStorage
-  useEffect(() => {
-    const savedCategories = localStorage.getItem('userCategories');
-    if (savedCategories) {
-      try {
-        setUserCategories(JSON.parse(savedCategories));
-      } catch (error) {
-        console.error('Error parsing user categories:', error);
-      }
-    }
-  }, []);
-
-  // Save user categories to localStorage when they change
-  useEffect(() => {
-    localStorage.setItem('userCategories', JSON.stringify(userCategories));
-  }, [userCategories]);
 
   const addCategory = (name: string, creatorId: string) => {
     setUserCategories(prevCategories => [
